@@ -11,7 +11,7 @@ earnings, institutional ownership). So:
 - **Fundamental-data connectors** (preferred) or web research cover the fundamental letters:
   **C** (quarterly EPS & sales), **A** (annual EPS, ROE, margins), and the ownership half of
   **I**. Prefer connected financial sources over generic web search — see Step 3 for the
-  source-priority ladder (Daloopa → bigdata.com → LSEG → SEC EDGAR → web) and when to delegate
+  source-priority ladder (Daloopa → bigdata.com → LSEG → FMP → SEC EDGAR → web) and when to delegate
   to the `ibkr-review-ticker` / `securities-filings-lookup` skills.
 
 Load IBKR tools with `ToolSearch` (query e.g. `"search contracts price history price
@@ -123,18 +123,26 @@ research only for finalists that already survived the technical cut.
 3. **LSEG** (`lseg:*`, e.g. `lseg:equity-research`) — analyst **consensus estimates** and
    fundamentals: next-year EPS estimate (part of **A**), plus estimate revisions and surprise
    history (the acceleration signal in **C**).
-4. **SEC EDGAR / official filings** — the authoritative primary statements (10-K / 10-Q /
+4. **Financial Modeling Prep (FMP)** — a structured fundamentals MCP (deferred; load its tools
+   with `ToolSearch`). Broad, fast coverage of the exact CAN SLIM inputs. Preferred tools:
+   `statements` (income / balance / cash-flow history → **EPS & revenue growth** for **C**,
+   multi-year annuals, **margins / ROE / debt** for **A**/**S**), `analyst` / `tipranks`
+   (forward estimates & consensus → forward **A**), `form13F` + `insiderTrades` (institutional
+   & management ownership → **I**/**S**), `company` (profile, float, sector), `calendar`
+   (next-earnings date → **N**/timing), `secFilings`, `discountedCashFlow`, `earningsTranscript`.
+   Requires the user's FMP API key / connector.
+5. **SEC EDGAR / official filings** — the authoritative primary statements (10-K / 10-Q /
    20-F / annual reports). Reach them via the **`securities-filings-lookup`** skill, which
    resolves the ticker's exchange/regulator and pulls the official filing (also covers non-US
    listings: HKEX, CNINFO, TWSE, LSE, EDINET, Frankfurt). Use for ground-truth income
    statement / balance sheet / cash flow, and for **I** (13F institutional ownership, Form 4
    management ownership).
-5. **General web search** — only when none of the above are connected.
+6. **General web search** — only when none of the above are connected.
 
-These connectors (bigdata.com, Daloopa, LSEG) require the user to have **authorized** them;
-if a call returns unauthorized/unavailable, drop to the next source down the ladder. Always
-note which source a figure came from, and timestamp it. Obey copyright (paraphrase; short
-quotes only).
+These connectors (bigdata.com, Daloopa, LSEG, FMP) require the user to have **authorized** /
+keyed them; if a call returns unauthorized/unavailable, drop to the next source down the
+ladder. Always note which source a figure came from, and timestamp it. Obey copyright
+(paraphrase; short quotes only).
 
 **Deep single-ticker dive.** When a candidate is borderline, a sell-off needs explaining, or
 the user asks to look closer at one name, delegate to the **`ibkr-review-ticker`** skill — it

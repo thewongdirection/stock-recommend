@@ -81,7 +81,7 @@ high, base depth/length, and breakout volume deterministically. Then gather fund
 (C, A, N, I) for the names that survive the technical cut — don't waste research on names
 already failing on price action / RS. **Prefer real financial-data connectors over generic
 web search** for the fundamental letters, following the source-priority ladder in
-`ibkr-data-guide.md` Step 3 (Daloopa → bigdata.com → LSEG → SEC EDGAR via
+`ibkr-data-guide.md` Step 3 (Daloopa → bigdata.com → LSEG → FMP → SEC EDGAR via
 `securities-filings-lookup` → web). When a candidate needs a deeper individual dive, delegate
 to a specialized skill — see "Delegating for deeper financials" below.
 
