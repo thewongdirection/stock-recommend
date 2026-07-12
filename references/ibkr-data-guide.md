@@ -8,8 +8,11 @@ earnings, institutional ownership). So:
 
 - **IBKR** covers the technical/positioning letters: **N** (new highs, bases), **S**
   (volume/liquidity), **L** (relative strength, leadership/groups), **M** (market direction).
-- **Web research** covers the fundamental letters: **C** (quarterly EPS & sales), **A**
-  (annual EPS, ROE, margins), and the ownership half of **I**.
+- **Fundamental-data connectors** (preferred) or web research cover the fundamental letters:
+  **C** (quarterly EPS & sales), **A** (annual EPS, ROE, margins), and the ownership half of
+  **I**. Prefer connected financial sources over generic web search — see Step 3 for the
+  source-priority ladder (Daloopa → bigdata.com → LSEG → SEC EDGAR → web) and when to delegate
+  to the `ibkr-review-ticker` / `securities-filings-lookup` skills.
 
 Load IBKR tools with `ToolSearch` (query e.g. `"search contracts price history price
 snapshot investment topics company themes"`) before use — they are deferred. This skill is
@@ -99,22 +102,62 @@ rather than eyeballing bars.
 
 ---
 
-## Step 3 — Per-candidate fundamentals (web research)
+## Step 3 — Per-candidate fundamentals (prefer data connectors over web search)
 
-For the finalists (don't waste research on names that already fail technicals), gather with
-sources:
+The fundamental letters — **C** (quarterly EPS & sales), **A** (annual EPS, ROE, margins),
+and the ownership half of **I** — need real reported financials. IBKR does not supply these,
+so use the best source that is actually connected, **in this order of preference**. Only fall
+back to generic web search when none of the better sources are available. Do the deep
+research only for finalists that already survived the technical cut.
+
+**Fundamental source priority (use the highest one that's connected):**
+
+1. **Daloopa** (`daloopa:*` skills, e.g. `daloopa:tearsheet`, `daloopa:industry`, the model
+   builders) — audited, model-ready quarterly & annual financials plus operating KPIs. Best
+   for the exact EPS / sales / margin / ROE growth figures and the multi-year history behind
+   **C** and **A**.
+2. **bigdata.com** (`bigdata-com:*`, e.g. `company-brief`, `earnings-digest`,
+   `earnings-quality-screen`, `valuation-snapshot`) — latest-quarter beat / acceleration /
+   guidance for **C**, an earnings-quality read that catches the "earnings up but sales flat /
+   weak cash conversion" trap, and the **N** story.
+3. **LSEG** (`lseg:*`, e.g. `lseg:equity-research`) — analyst **consensus estimates** and
+   fundamentals: next-year EPS estimate (part of **A**), plus estimate revisions and surprise
+   history (the acceleration signal in **C**).
+4. **SEC EDGAR / official filings** — the authoritative primary statements (10-K / 10-Q /
+   20-F / annual reports). Reach them via the **`securities-filings-lookup`** skill, which
+   resolves the ticker's exchange/regulator and pulls the official filing (also covers non-US
+   listings: HKEX, CNINFO, TWSE, LSE, EDINET, Frankfurt). Use for ground-truth income
+   statement / balance sheet / cash flow, and for **I** (13F institutional ownership, Form 4
+   management ownership).
+5. **General web search** — only when none of the above are connected.
+
+These connectors (bigdata.com, Daloopa, LSEG) require the user to have **authorized** them;
+if a call returns unauthorized/unavailable, drop to the next source down the ladder. Always
+note which source a figure came from, and timestamp it. Obey copyright (paraphrase; short
+quotes only).
+
+**Deep single-ticker dive.** When a candidate is borderline, a sell-off needs explaining, or
+the user asks to look closer at one name, delegate to the **`ibkr-review-ticker`** skill — it
+builds a full single-stock dashboard (fundamentals vs. peers, valuation, options/vol,
+probability outlook) and pulls the official financials for further analysis. For the raw
+filing **PDFs**, use `securities-filings-lookup`. **If a companion skill you need is not
+installed, don't silently skip it** — tell the user and point them to its GitHub repo to
+install (see SKILL.md "Delegating for deeper financials & required companion skills" for the
+repo URLs and an example prompt), then continue with the best available source.
+
+Whichever source you use, gather:
 - **C:** last 2–3 quarters' **EPS growth YoY** and **sales growth YoY**; is growth
   accelerating? margins improving? Exclude one-time items.
 - **A:** **annual EPS** last 3 years (up each year? growth rate?), **ROE**, profit margins,
   next-year consensus estimate.
 - **N:** the "new" story — product/service, new management, new industry conditions; IPO
   recency (New America).
-- **I:** number/trend of institutional owners; any top-tier funds adding; over-owned? (a
-  rough read from web is fine — "institutional ownership %", recent 13F buying).
+- **I:** number/trend of institutional owners; any top-tier funds adding; over-owned?
+  (institutional ownership %, recent 13F buying).
 - **S extras:** shares outstanding / float, buybacks, debt/equity, management ownership.
 
-Favor primary/recent sources; obey copyright (paraphrase; short quotes only). If data is
-unavailable, mark the field "n/a" and lower confidence rather than guessing.
+If data is unavailable from every source, mark the field "n/a" and lower confidence rather
+than guessing.
 
 ---
 

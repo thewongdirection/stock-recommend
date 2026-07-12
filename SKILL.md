@@ -73,13 +73,17 @@ add current leaders from web research (new-high lists, strong-earnings growth na
 sectors), plus the user's watchlist if asked. Resolve each to a `contract_id` with
 `search_contracts` (exact symbol, US primary listing).
 
-### 4 — Gather technicals (IBKR) and fundamentals (web)
+### 4 — Gather technicals (IBKR) and fundamentals (preferred data connectors)
 For each candidate: `get_price_snapshot` (52-week high/low, price) and `get_price_history`
 (weekly ~1–2 yr for base shape; daily ~6 mo for breakout volume & RS). Run
 `scripts/relative_strength.py` on the collected bars to compute the RS proxy, % off 52-week
-high, base depth/length, and breakout volume deterministically. Then research fundamentals
+high, base depth/length, and breakout volume deterministically. Then gather fundamentals
 (C, A, N, I) for the names that survive the technical cut — don't waste research on names
-already failing on price action / RS.
+already failing on price action / RS. **Prefer real financial-data connectors over generic
+web search** for the fundamental letters, following the source-priority ladder in
+`ibkr-data-guide.md` Step 3 (Daloopa → bigdata.com → LSEG → SEC EDGAR via
+`securities-filings-lookup` → web). When a candidate needs a deeper individual dive, delegate
+to a specialized skill — see "Delegating for deeper financials" below.
 
 ### 5 — Score, filter, diversify
 Apply `ibkr-data-guide.md` Step 4: hard-disqualify the failures (cheap/illiquid, near
@@ -105,6 +109,30 @@ never pad with weak names (that is the whole point of the method). Present:
   take many 20–25% gains but hold the powerful leaders).
 - **Disclaimers:** informational only, not investment advice, you are not a financial
   advisor; figures are as-of the timestamp; nothing here is an order.
+
+## Delegating for deeper financials & required companion skills
+This skill screens breadth; for depth on a single name, hand off to a specialized skill
+rather than doing a shallow web dig. Use these when a candidate is borderline, when a
+sell-off needs explaining, or when the user asks to "look closer at X":
+
+- **`ibkr-review-ticker`** — the primary deep-dive. Generates a full single-stock dashboard
+  (fundamentals vs. peers, valuation, options/volatility positioning, probability outlook)
+  and pulls the official financials for further analysis. Invoke it for any candidate that
+  needs an individual financial review before it earns a spot on the list.
+- **`securities-filings-lookup`** — retrieves the official filing **PDFs** (10-K / 10-Q /
+  20-F / annual reports) from the right regulator (SEC EDGAR and non-US equivalents). Use it
+  when you need the ground-truth reported statements behind **C**/**A**, or 13F/Form 4 data
+  for **I**.
+
+**If a companion skill you need is not installed**, do not silently fall back — tell the user
+it's missing and prompt them to install it from its GitHub repo, then continue with the best
+available source (the connector ladder in `ibkr-data-guide.md`, or web search):
+- `ibkr-review-ticker` → **https://github.com/thewongdirection/ibkr-review-ticker**
+- `securities-filings-lookup` → **https://github.com/thewongdirection/securities-filings-lookup**
+
+(Example prompt: *"For a deeper financial dive on NVDA I'd normally use the `ibkr-review-ticker`
+skill, but it isn't installed. You can add it from https://github.com/thewongdirection/ibkr-review-ticker
+— install it and I'll re-run the deep dive. For now I'll use the connected data sources / web."*)
 
 ## Guardrails
 - **Read-only, market data only.** Allowed IBKR tools: `search_contracts`,
