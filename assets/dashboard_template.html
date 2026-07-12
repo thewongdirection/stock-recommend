@@ -1,19 +1,28 @@
 <!--
-  stock-recommend — CAN SLIM dashboard template.
+  stock-recommend - CAN SLIM dashboard template.
 
   HOW TO USE (per run):
     1. Copy this file to the output location, e.g. canslim-recommendations.html
     2. Fill the CONFIG object below with the screen's results. That is the ONLY thing you
-       edit — the page renders itself from CONFIG. Do not hand-edit the DOM.
+       edit - the page renders itself from CONFIG. Do not hand-edit the DOM.
     3. Open / present the file. For PDF, print-to-PDF (the print CSS is A4/Letter-friendly).
 
   RULES THE TEMPLATE ENFORCES BY CONVENTION:
-    - Every pick MUST carry a `reason` that is expressed ONLY in CAN SLIM terms (the seven
-      letters, bases/pivots, relative strength, new highs, volume/accumulation, leadership,
+    - Every pick MUST carry a `reason` expressed ONLY in CAN SLIM terms (the seven letters,
+      bases/pivots, relative strength, new highs, volume/accumulation, leadership,
       institutional sponsorship, market direction). No generic market chatter, no non-method
-      rationale. If you can't justify a name in CAN SLIM terms, it does not belong on the list.
+      rationale. If a name can't be justified in CAN SLIM terms, it does not belong here.
     - `scores` uses exactly "pass" | "partial" | "fail" for each of C,A,N,S,L,I.
     - Never put account-bound data (IDs, balances, positions) anywhere in CONFIG.
+
+  ENCODING: keep CONFIG text ASCII where practical (use "-" not an em-dash, "vs" not a
+    special glyph). The page is UTF-8, but ASCII content is bulletproof across viewers/PDF.
+
+  PER-TICKER DEEP DIVE: give a pick a `reviewUrl` (path/URL to the HTML produced by the
+    `ibkr-review-ticker` skill for that symbol, saved next to this file). The ticker then
+    becomes a link that opens that report in an in-page window (modal iframe). Omit it and
+    the ticker is plain text. For the iframe to load a local file, serve the dashboard and
+    the review files from the same folder (same origin) or open via a local server.
 -->
 <!doctype html>
 <html lang="en">
@@ -27,7 +36,6 @@
     --accent:#1c64f2; --accent-soft:#e8f0fe;
     --pass:#0f9d58; --pass-bg:#e6f4ea; --partial:#c77700; --partial-bg:#fdf1dd;
     --fail:#c5221f; --fail-bg:#fce8e6; --chip:#eef1f5;
-    --up:#0f9d58; --pressure:#c77700; --down:#c5221f;
     --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
   }
@@ -54,31 +62,38 @@
   .market{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:18px 0 6px;
     background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .verdict{font-weight:700;font-size:14px;padding:6px 12px;border-radius:999px;white-space:nowrap}
-  .verdict.up{background:var(--pass-bg);color:var(--up)}
-  .verdict.pressure{background:var(--partial-bg);color:var(--pressure)}
-  .verdict.down{background:var(--fail-bg);color:var(--down)}
+  .verdict.up{background:var(--pass-bg);color:var(--pass)}
+  .verdict.pressure{background:var(--partial-bg);color:var(--partial)}
+  .verdict.down{background:var(--fail-bg);color:var(--fail)}
   .market .imp{font-size:13.5px;color:var(--ink);flex:1;min-width:240px}
-  .market .imp b{color:var(--ink)}
   .dd{font-family:var(--mono);font-size:12px;color:var(--muted)}
 
   .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
     color:var(--muted);margin:26px 0 10px}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 12px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 10px;align-items:center}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
   .dot.pass{background:var(--pass)} .dot.partial{background:var(--partial)} .dot.fail{background:var(--fail)}
+  .hint{font-size:11.5px;color:var(--muted);font-style:italic}
 
   .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
   table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
   thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
     padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel);position:sticky;top:0}
+  thead th.sortable{cursor:pointer;user-select:none}
+  thead th.sortable:hover{color:var(--ink)}
+  th .arrow{opacity:.35;font-size:10px;margin-left:3px}
+  th.sorted .arrow{opacity:1;color:var(--accent)}
+  th.num{text-align:right}
   tbody td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
   tbody tr:last-child td{border-bottom:none}
   .rk{font-family:var(--mono);color:var(--muted)}
   .sym{font-family:var(--mono);font-weight:700;font-size:14px}
+  a.sym{color:var(--accent);text-decoration:none;cursor:pointer;border-bottom:1px dotted var(--accent)}
+  a.sym:hover{border-bottom-style:solid}
   .co{color:var(--muted);font-size:12px}
   .grp{font-size:12px}
-  .num{font-family:var(--mono);white-space:nowrap;text-align:right}
+  td.num{font-family:var(--mono);white-space:nowrap;text-align:right}
   .pos{color:var(--pass)} .neg{color:var(--fail)}
   .scorecells{white-space:nowrap}
   .sc{display:inline-flex;flex-direction:column;align-items:center;width:22px;margin-right:3px}
@@ -106,12 +121,27 @@
   footer a{color:var(--accent)}
   .sources a{margin-right:12px;white-space:nowrap}
 
+  /* modal window for the per-ticker ibkr-review-ticker report */
+  .modal{position:fixed;inset:0;background:rgba(10,14,20,.6);display:none;z-index:50;
+    align-items:center;justify-content:center;padding:24px}
+  .modal.open{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(1200px,96vw);
+    height:min(88vh,900px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .modal-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;
+    border-bottom:1px solid var(--line)}
+  .modal-bar .t{font-family:var(--mono);font-weight:700}
+  .modal-bar .acts a,.modal-bar .acts button{font-size:12px;margin-left:12px;color:var(--accent);
+    background:none;border:none;cursor:pointer;text-decoration:none}
+  .modal iframe{border:0;width:100%;height:100%;background:#fff}
+
   @media print{
     body{background:#fff}
     .wrap{max-width:none;padding:0}
     .tablewrap,.card,.tier,.market{break-inside:avoid}
     thead th{position:static}
+    .hint,th .arrow{display:none}
     a{color:inherit;text-decoration:none}
+    .modal{display:none !important}
     @page{margin:14mm}
   }
 </style>
@@ -135,15 +165,12 @@
     <span><span class="dot pass"></span>meets CAN SLIM threshold</span>
     <span><span class="dot partial"></span>partial</span>
     <span><span class="dot fail"></span>fails</span>
-    <span style="color:var(--muted)">Scorecard letters: C·A·N·S·L·I &nbsp;|&nbsp; RS = 12-mo return vs. SPY (proxy)</span>
+    <span style="color:var(--muted)">Scorecard: C&middot;A&middot;N&middot;S&middot;L&middot;I &nbsp;|&nbsp; RS = 12-mo return vs. SPY (proxy)</span>
   </div>
+  <div class="legend"><span class="hint">Click a column header to sort. Click a ticker to open its ibkr-review-ticker report.</span></div>
   <div class="tablewrap">
     <table>
-      <thead><tr>
-        <th>#</th><th>Stock</th><th>Group</th><th class="num">Price</th><th class="num">RS</th>
-        <th class="num">% off 52w hi</th><th>C·A·N·S·L·I</th><th class="num">Buy point</th>
-        <th class="num">Stop</th><th>Why (CAN SLIM read)</th>
-      </tr></thead>
+      <thead><tr id="head"></tr></thead>
       <tbody id="rows"></tbody>
     </table>
   </div>
@@ -154,12 +181,12 @@
   </div>
 
   <div id="watchWrap" style="display:none">
-    <div class="section-title">Watch — leaders repairing bases (not yet buyable)</div>
+    <div class="section-title">Watch &mdash; leaders repairing bases (not yet buyable)</div>
     <div id="watch"></div>
   </div>
 
   <div id="specWrap" style="display:none">
-    <div class="section-title">Strong charts that fail the earnings test — avoid (per method)</div>
+    <div class="section-title">Strong charts that fail the earnings test &mdash; avoid (per method)</div>
     <div id="spec"></div>
   </div>
 
@@ -173,132 +200,195 @@
   <footer>
     <div id="disclaimer"></div>
     <div class="sources" id="sources" style="margin-top:8px"></div>
-    <div style="margin-top:8px">Methodology: CAN SLIM (C — current quarterly earnings & sales · A — annual earnings & ROE · N — new products/management/highs off a base · S — supply/demand & volume · L — leader not laggard / relative strength · I — institutional sponsorship · M — market direction). Reasons are expressed only in these terms.</div>
+    <div style="margin-top:8px">Methodology: CAN SLIM (C &mdash; current quarterly earnings &amp; sales &middot; A &mdash; annual earnings &amp; ROE &middot; N &mdash; new products/management/highs off a base &middot; S &mdash; supply/demand &amp; volume &middot; L &mdash; leader not laggard / relative strength &middot; I &mdash; institutional sponsorship &middot; M &mdash; market direction). Reasons are expressed only in these terms.</div>
   </footer>
+</div>
+
+<!-- per-ticker report window -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-bar">
+      <span class="t" id="modalTitle"></span>
+      <span class="acts">
+        <a id="modalOpen" target="_blank" rel="noopener">Open in new tab</a>
+        <button id="modalClose" type="button">Close &times;</button>
+      </span>
+    </div>
+    <iframe id="modalFrame" title="ibkr-review-ticker report"></iframe>
+  </div>
 </div>
 
 <script>
 /* ============================ FILL THIS PER RUN ============================ */
 const CONFIG = {
   title: "CAN SLIM Stock Recommendations",
-  subtitle: "Screened with the CAN SLIM growth-investing methodology · IBKR live data + fundamentals",
+  subtitle: "Screened with the CAN SLIM growth-investing methodology - IBKR data + fundamentals",
   generatedAt: "2026-07-11 (market close)",
   dataSource: "IBKR (delayed/live) + fundamental sources",
   requested: 20,
 
   market: {
-    verdict: "Confirmed uptrend — narrow & selective",   // shown in the badge
-    tone: "pressure",   // "up" | "pressure" | "down"  (colors the badge)
+    verdict: "Confirmed uptrend - narrow & selective",   // badge text
+    tone: "pressure",                                     // "up" | "pressure" | "down"
     distributionDays: "SPY 5 / QQQ 7 over ~5 weeks",
-    implication: "Indices near highs above the 50-day, but leadership is narrow (M is intact but late-stage). Buy only genuine leaders emerging from sound bases; normal 7–8% stops."
+    implication: "Indices near highs above the 50-day, but leadership is narrow (M intact but late-stage). Buy only genuine leaders emerging from sound bases; normal 7-8% stops."
   },
 
-  // Set delivered < requested and fill shortfall when fewer names qualify (never pad).
+  // Set when fewer than requested qualify (never pad).
   shortfall: "Only the names below cleared the full filter; the rest of the market's leadership has broken down or is extended. Per the method, returning the qualifiers rather than padding to 20.",
 
-  // Tier-1 buy-range picks. scores are pass|partial|fail. reason = CAN SLIM terms ONLY.
+  // Tier-1 buy-range picks. scores = pass|partial|fail. reason = CAN SLIM terms ONLY.
+  // Optional reviewUrl = path/URL to this symbol's ibkr-review-ticker HTML (makes ticker clickable).
   picks: [
     // {
     //   rank:1, symbol:"ANET", company:"Arista Networks", group:"AI networking",
     //   price:"186.96", rs:"+51", offHigh:"0%", buyPoint:"~178 pivot", stop:"~172",
     //   scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
-    //   reason:"C: Q EPS +32% / sales +35% accelerating. A: 3-yr growth, high ROE. N: new AI-cluster product at a new high off a sound base. L: RS +51, #1 in a leading group. I: heavy institutional sponsorship."
+    //   reason:"C: Q EPS +32% / sales +35% accelerating. A: 3-yr growth + high ROE. N: new AI-cluster product at a new high off a sound base. L: RS +51, #1 in a leading group. I: heavy institutional sponsorship.",
+    //   reviewUrl:"reviews/ANET-review.html"
     // }
   ],
 
-  // Optional longer prose per name (cards). Omit to hide.
-  rationale: [
-    // { symbol:"ANET", company:"Arista Networks", text:"..." }
-  ],
+  rationale: [ /* { symbol, company, text } */ ],
+  watch: [ /* { symbol, company, group, offHigh, note } */ ],
+  speculative: [ /* { symbol, company, reason } */ ],
+  excluded: [ /* { group, names, reason } */ ],
 
-  // Optional tiers
-  watch: [
-    // { symbol:"NVDA", company:"NVIDIA", group:"AI infrastructure", offHigh:"-14%", note:"Top-tier fundamentals but not at a proper pivot — extended base repair. Buy only on a new-high breakout from a sound base." }
-  ],
-  speculative: [
-    // { symbol:"VKTX", company:"Viking Therapeutics", reason:"Constructive base breakout on volume, but $0 revenue / net loss — fails C and A. The 'story-with-no-profits' name the method avoids." }
-  ],
-  excluded: [
-    // { group:"Quantum", names:"IONQ -47%, RGTI -71%", reason:"Near 52-week lows / negative RS — disqualified regardless of theme popularity." }
-  ],
-
-  portfolioNote: "The method favors concentration (4–6 names), so treat this as a research shortlist to narrow, not a buy-all list. Discipline that matters more than the picks: cut every loss at 7–8% (no exceptions), average up never down, take many 20–25% gains but let a powerful leader run if it jumps 20%+ in 1–3 weeks. Re-check M — if distribution days keep building, raise cash.",
-  disclaimer: "Informational decision support, not investment advice; not a financial advisor. Figures are as-of the timestamp; RS is a relative-strength proxy (12-mo vs SPY), not a full-market 1–99 rating; fundamentals may lag. Nothing here is an order; no orders were or will be placed.",
-  sources: [
-    // { label:"Lilly Q1'26 (CNBC)", url:"https://..." }
-  ]
+  portfolioNote: "The method favors concentration (4-6 names), so treat this as a research shortlist to narrow, not a buy-all list. Cut every loss at 7-8% (no exceptions), average up never down, take many 20-25% gains but let a powerful leader run if it jumps 20%+ in 1-3 weeks. Re-check M - if distribution days keep building, raise cash.",
+  disclaimer: "Informational decision support, not investment advice; not a financial advisor. Figures are as-of the timestamp; RS is a relative-strength proxy (12-mo vs SPY), not a full-market 1-99 rating; fundamentals may lag. Nothing here is an order; no orders were or will be placed.",
+  sources: [ /* { label, url } */ ]
 };
 /* ========================================================================== */
 
 const $ = (id)=>document.getElementById(id);
 const esc = (s)=> (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const rsClass = (v)=> /^-|^−/.test(String(v).trim()) ? "neg" : "pos";
+const rsClass = (v)=> /^[-\u2212]/.test(String(v).trim()) ? "neg" : "pos";
+const MK = {pass:"&#10003;", partial:"~", fail:"&#10007;"};   // check / tilde / cross as ASCII entities
+// parse a messy numeric string ("+51","-14%","1,188",">1,220 breakout","~178 pivot") -> number|NaN
+const num = (s)=>{ if(s==null) return NaN; const m=String(s).replace(/,/g,'').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):NaN; };
+const passCount = (sc={})=> ["C","A","N","S","L","I"].reduce((n,k)=> n + (sc[k]==="pass"?1:sc[k]==="partial"?0.5:0), 0);
 
 document.title = CONFIG.title || "CAN SLIM Recommendations";
 $("title").textContent = CONFIG.title || document.title;
 if (CONFIG.subtitle) $("subtitle").textContent = CONFIG.subtitle;
-$("meta").innerHTML = `As of ${esc(CONFIG.generatedAt||"")}<br>${esc(CONFIG.dataSource||"")}`;
+$("meta").innerHTML = "As of " + esc(CONFIG.generatedAt||"") + "<br>" + esc(CONFIG.dataSource||"");
 
-// market
 const m = CONFIG.market||{};
 $("market").innerHTML =
-  `<span class="verdict ${esc(m.tone||'up')}">${esc(m.verdict||'')}</span>`+
-  `<div class="imp"><b>M — market direction:</b> ${esc(m.implication||'')}</div>`+
-  (m.distributionDays?`<div class="dd">Distribution days: ${esc(m.distributionDays)}</div>`:'');
+  '<span class="verdict '+esc(m.tone||'up')+'">'+esc(m.verdict||'')+'</span>'+
+  '<div class="imp"><b>M &mdash; market direction:</b> '+esc(m.implication||'')+'</div>'+
+  (m.distributionDays?'<div class="dd">Distribution days: '+esc(m.distributionDays)+'</div>':'');
 
-const delivered = (CONFIG.picks||[]).length;
-$("countnote").textContent = CONFIG.requested ? `— ${delivered} of ${CONFIG.requested} requested qualified` : `— ${delivered}`;
-if (CONFIG.shortfall && delivered < (CONFIG.requested||Infinity)){
-  $("shortfall").innerHTML = `<div class="callout">${esc(CONFIG.shortfall)}</div>`;
+const picks = (CONFIG.picks||[]).slice();
+$("countnote").textContent = CONFIG.requested ? "- "+picks.length+" of "+CONFIG.requested+" requested qualified" : "- "+picks.length;
+if (CONFIG.shortfall && picks.length < (CONFIG.requested||Infinity)){
+  $("shortfall").innerHTML = '<div class="callout">'+esc(CONFIG.shortfall)+'</div>';
 }
 
-// rows
-const mk = (v)=>{const t=v||'fail';const g=t==='pass'?'✓':t==='partial'?'~':'✗';return `<span class="mk ${t}">${g}</span>`;};
-const scoreCells = (s={})=> ["C","A","N","S","L","I"].map(k=>
-  `<span class="sc"><span class="lab">${k}</span>${mk(s[k])}</span>`).join('');
-$("rows").innerHTML = (CONFIG.picks||[]).map(p=>`
-  <tr>
-    <td class="rk">${esc(p.rank)}</td>
-    <td><div class="sym">${esc(p.symbol)}</div><div class="co">${esc(p.company)}</div></td>
-    <td class="grp">${esc(p.group)}</td>
-    <td class="num">${esc(p.price)}</td>
-    <td class="num ${rsClass(p.rs)}">${esc(p.rs)}</td>
-    <td class="num">${esc(p.offHigh)}</td>
-    <td class="scorecells">${scoreCells(p.scores)}</td>
-    <td class="num">${esc(p.buyPoint)}</td>
-    <td class="num">${esc(p.stop)}</td>
-    <td class="reason">${esc(p.reason)}</td>
-  </tr>`).join('') || `<tr><td colspan="10" style="padding:18px;color:var(--muted)">No names cleared the full CAN SLIM filter in the current market. See notes above.</td></tr>`;
+// ---- sortable header ----
+const COLS = [
+  {key:"rank",   label:"#",            type:"num",  cls:"",     get:p=>num(p.rank)},
+  {key:"symbol", label:"Stock",        type:"text", cls:"",     get:p=>(p.symbol||"")},
+  {key:"group",  label:"Group",        type:"text", cls:"",     get:p=>(p.group||"")},
+  {key:"price",  label:"Price",        type:"num",  cls:"num",  get:p=>num(p.price)},
+  {key:"rs",     label:"RS",           type:"num",  cls:"num",  get:p=>num(p.rs)},
+  {key:"offHigh",label:"% off 52w hi", type:"num",  cls:"num",  get:p=>num(p.offHigh)},
+  {key:"score",  label:"C&middot;A&middot;N&middot;S&middot;L&middot;I", type:"num", cls:"", get:p=>passCount(p.scores)},
+  {key:"buyPoint",label:"Buy point",   type:"text", cls:"num",  get:p=>(p.buyPoint||""), noSort:true},
+  {key:"stop",   label:"Stop",         type:"text", cls:"num",  get:p=>(p.stop||""),      noSort:true},
+  {key:"reason", label:"Why (CAN SLIM read)", type:"text", cls:"", get:p=>(p.reason||""), noSort:true},
+];
+let sortState = {key:null, dir:1};
 
-// rationale cards
+$("head").innerHTML = COLS.map(c=>{
+  const sortable = !c.noSort;
+  return '<th class="'+c.cls+(sortable?' sortable':'')+'" data-key="'+c.key+'">'+c.label+
+    (sortable?' <span class="arrow">&#9662;</span>':'')+'</th>';
+}).join('');
+
+function renderRows(list){
+  $("rows").innerHTML = list.map(p=>{
+    const tk = p.reviewUrl
+      ? '<a class="sym" data-review="'+esc(p.reviewUrl)+'" data-sym="'+esc(p.symbol)+'">'+esc(p.symbol)+'</a>'
+      : '<span class="sym">'+esc(p.symbol)+'</span>';
+    const sc = ["C","A","N","S","L","I"].map(k=>{
+      const t=(p.scores&&p.scores[k])||'fail';
+      return '<span class="sc"><span class="lab">'+k+'</span><span class="mk '+t+'">'+MK[t]+'</span></span>';
+    }).join('');
+    return '<tr>'+
+      '<td class="rk">'+esc(p.rank)+'</td>'+
+      '<td>'+tk+'<div class="co">'+esc(p.company)+'</div></td>'+
+      '<td class="grp">'+esc(p.group)+'</td>'+
+      '<td class="num">'+esc(p.price)+'</td>'+
+      '<td class="num '+rsClass(p.rs)+'">'+esc(p.rs)+'</td>'+
+      '<td class="num">'+esc(p.offHigh)+'</td>'+
+      '<td class="scorecells">'+sc+'</td>'+
+      '<td class="num">'+esc(p.buyPoint)+'</td>'+
+      '<td class="num">'+esc(p.stop)+'</td>'+
+      '<td class="reason">'+esc(p.reason)+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="'+COLS.length+'" style="padding:18px;color:var(--muted)">No names cleared the full CAN SLIM filter in the current market. See notes above.</td></tr>';
+}
+function applySort(key){
+  const col = COLS.find(c=>c.key===key); if(!col||col.noSort) return;
+  sortState.dir = (sortState.key===key) ? -sortState.dir : 1;
+  sortState.key = key;
+  const dir = sortState.dir;
+  const sorted = picks.slice().sort((a,b)=>{
+    let va=col.get(a), vb=col.get(b);
+    if(col.type==="num"){ const na=isNaN(va), nb=isNaN(vb); if(na&&nb)return 0; if(na)return 1; if(nb)return -1; return (va-vb)*dir; }
+    return String(va).localeCompare(String(vb),undefined,{sensitivity:'base'})*dir;
+  });
+  renderRows(sorted);
+  document.querySelectorAll('th').forEach(th=>{
+    th.classList.toggle('sorted', th.dataset.key===key);
+    const ar=th.querySelector('.arrow'); if(ar) ar.innerHTML = th.dataset.key===key ? (dir>0?'&#9652;':'&#9662;') : '&#9662;';
+  });
+}
+$("head").addEventListener('click', e=>{ const th=e.target.closest('th'); if(th&&th.dataset.key) applySort(th.dataset.key); });
+renderRows(picks);
+
+// ---- per-ticker report modal ----
+function openReview(url, sym){
+  $("modalTitle").textContent = (sym?sym+" - ":"") + "ibkr-review-ticker report";
+  $("modalOpen").href = url;
+  $("modalFrame").src = url;
+  $("modal").classList.add('open');
+}
+function closeReview(){ $("modal").classList.remove('open'); $("modalFrame").src="about:blank"; }
+$("rows").addEventListener('click', e=>{
+  const a=e.target.closest('a[data-review]'); if(!a) return;
+  e.preventDefault(); openReview(a.dataset.review, a.dataset.sym);
+});
+$("modalClose").addEventListener('click', closeReview);
+$("modal").addEventListener('click', e=>{ if(e.target.id==='modal') closeReview(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeReview(); });
+
+// ---- optional sections ----
 if ((CONFIG.rationale||[]).length){
   $("rationaleWrap").style.display='block';
   $("cards").innerHTML = CONFIG.rationale.map(r=>
-    `<div class="card"><h3>${esc(r.symbol)}</h3><div class="co">${esc(r.company||'')}</div><p>${esc(r.text)}</p></div>`).join('');
+    '<div class="card"><h3>'+esc(r.symbol)+'</h3><div class="co">'+esc(r.company||'')+'</div><p>'+esc(r.text)+'</p></div>').join('');
 }
-// watch
 if ((CONFIG.watch||[]).length){
   $("watchWrap").style.display='block';
   $("watch").innerHTML = CONFIG.watch.map(w=>
-    `<div class="tier"><b>${esc(w.symbol)}</b> ${esc(w.company||'')} · ${esc(w.group||'')} · <span class="num neg">${esc(w.offHigh||'')}</span><div class="why">${esc(w.note||'')}</div></div>`).join('');
+    '<div class="tier"><b>'+esc(w.symbol)+'</b> '+esc(w.company||'')+' &middot; '+esc(w.group||'')+' &middot; <span class="num neg">'+esc(w.offHigh||'')+'</span><div class="why">'+esc(w.note||'')+'</div></div>').join('');
 }
-// speculative
 if ((CONFIG.speculative||[]).length){
   $("specWrap").style.display='block';
   $("spec").innerHTML = CONFIG.speculative.map(s=>
-    `<div class="tier"><b>${esc(s.symbol)}</b> ${esc(s.company||'')}<div class="why">${esc(s.reason||'')}</div></div>`).join('');
+    '<div class="tier"><b>'+esc(s.symbol)+'</b> '+esc(s.company||'')+'<div class="why">'+esc(s.reason||'')+'</div></div>').join('');
 }
-// excluded
 if ((CONFIG.excluded||[]).length){
   $("exclWrap").style.display='block';
-  $("excl").innerHTML = CONFIG.excluded.map(e=>
-    `<div class="tier"><b>${esc(e.group)}</b> <span class="why">— ${esc(e.names||'')}</span><div class="why">${esc(e.reason||'')}</div></div>`).join('');
+  $("excl").innerHTML = CONFIG.excluded.map(x=>
+    '<div class="tier"><b>'+esc(x.group)+'</b> <span class="why">- '+esc(x.names||'')+'</span><div class="why">'+esc(x.reason||'')+'</div></div>').join('');
 }
-
-$("portfolio").innerHTML = `<b>Portfolio &amp; risk (per the method):</b> ${esc(CONFIG.portfolioNote||'')}`;
+$("portfolio").innerHTML = '<b>Portfolio &amp; risk (per the method):</b> '+esc(CONFIG.portfolioNote||'');
 $("disclaimer").textContent = CONFIG.disclaimer||'';
 if ((CONFIG.sources||[]).length){
-  $("sources").innerHTML = "Sources: " + CONFIG.sources.map(s=>`<a href="${esc(s.url)}">${esc(s.label)}</a>`).join('');
+  $("sources").innerHTML = "Sources: " + CONFIG.sources.map(s=>'<a href="'+esc(s.url)+'">'+esc(s.label)+'</a>').join('');
 }
 </script>
 </body>

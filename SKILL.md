@@ -122,7 +122,24 @@ the actual EPS/sales %, the RS figure, the base and pivot).
 3. Present the file (SendUserFile / present_files, or give the path). Keep the chat reply
    short: the market read, the headline picks, and why the count is what it is.
 
-The template is a complete UTF-8 document, theme-aware, and print-optimized (A4/Letter).
+**Built-in interactivity (no work needed):** the table is **sortable** — clicking any column
+header sorts by it (alphabetical for Stock/Group, numeric for Price/RS/% off high/scorecard),
+toggling ascending/descending. Keep `price`, `rs`, and `offHigh` as clean values (e.g.
+`"186.96"`, `"+51"`, `"8%"`) so numeric sort parses them.
+
+**Per-ticker deep dive (clickable ticker → in-page report window):** give a pick a
+`reviewUrl` and its ticker becomes a link that opens that report in a modal iframe. To wire
+this up, run the **`ibkr-review-ticker`** skill for the picks (all of them, or on request),
+save each report next to the dashboard as `reviews/<SYM>-review.html`, and set
+`reviewUrl:"reviews/<SYM>-review.html"` on the pick. Because the modal loads via an iframe,
+the review files must be **same-origin** with the dashboard (same folder, opened via a local
+server or a viewer that allows it); a full `https://` URL also works. Omit `reviewUrl` and the
+ticker is plain text. If `ibkr-review-ticker` isn't installed, prompt the user to install it
+(see "Delegating for deeper financials…") and ship the dashboard without the links.
+
+The template is a complete UTF-8 document written in **pure-ASCII source** (special glyphs are
+HTML entities, so no mojibake even if a viewer ignores the charset), theme-aware, and
+print-optimized (A4/Letter).
 **Always offer PDF** — e.g. *"Want this as a PDF too?"* — and on request convert the saved
 HTML to PDF (headless Chrome `--headless --print-to-pdf=out.pdf file.html`, or the `pdf`
 skill, or `weasyprint`) and deliver that file as well.
@@ -185,4 +202,7 @@ skill, but it isn't installed. You can add it from https://github.com/thewongdir
 - `assets/dashboard_template.html` — the default output. A self-contained, theme-aware,
   print-optimized (PDF-ready) dashboard driven entirely by a `CONFIG` object you fill each
   run: market verdict, the ranked table with the C·A·N·S·L·I scorecard and CAN-SLIM reasons,
-  watch/speculative/excluded tiers, and the portfolio note + disclaimer.
+  watch/speculative/excluded tiers, and the portfolio note + disclaimer. Pure-ASCII source
+  (entity glyphs — no mojibake). The table **sorts** on any column header, and a pick's
+  ticker becomes a **clickable link** that opens its `ibkr-review-ticker` report in an in-page
+  window when you set the pick's `reviewUrl`.
