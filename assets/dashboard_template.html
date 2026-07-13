@@ -467,11 +467,13 @@ function buildLeadMap(){
   for(let i=0;i<=4;i++){ const txv=txMin+i/4*(txMax-txMin), raw=Math.sign(txv)*txv*txv, px=mL+i/4*pw;
     svg+='<text class="lm-tick" x="'+px.toFixed(1)+'" y="'+(mT+ph+15)+'" text-anchor="middle">'+(raw>0?'+':'')+Math.round(raw)+'</text>';
   }
-  // dots + labels
+  // dots + labels (flip the label to the left of dots near the right edge so it isn't clipped)
   pts.forEach(d=>{
     const cx=X(d.x), cy=Y(d.y);
+    const flip = cx > mL+pw-46;
+    const lx = (flip ? cx-7 : cx+7).toFixed(1);
     svg+='<circle class="lm-dot'+(d.lead?' lead':'')+'" cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="4.5"/>'+
-         '<text class="lm-lab" x="'+(cx+7).toFixed(1)+'" y="'+(cy+3.5).toFixed(1)+'">'+esc(d.sym)+'</text>';
+         '<text class="lm-lab" text-anchor="'+(flip?'end':'start')+'" x="'+lx+'" y="'+(cy+3.5).toFixed(1)+'">'+esc(d.sym)+'</text>';
   });
   svg+='</svg>';
   $("leadmap").innerHTML=svg;

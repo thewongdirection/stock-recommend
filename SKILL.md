@@ -1,22 +1,17 @@
 ---
 name: can-slim-recommend
 description: >-
-  Generate a ranked, sector-diversified list of stock recommendations by screening the
-  market with the CAN SLIM growth-investing methodology against live Interactive Brokers
-  (IBKR) data plus web research. Use this whenever the
-  user asks for stock ideas, picks, or recommendations — "recommend some stocks", "what
-  stocks should I buy", "give me a list of stocks", "find me growth stocks", "screen for
-  CAN SLIM stocks", "what should I add to my watchlist", "any good stocks right now",
-  "build me a stock shortlist" — even if they don't name CAN SLIM. Also use when
-  they ask for stocks in a theme/sector ("recommend AI stocks", "best energy names") and
-  want them vetted, or ask how many strong setups exist right now. Asks how many names to
-  return (default 20) and diversifies across non-overlapping industry groups. Prefer this
-  skill over ad-hoc picking for any "recommend / screen / find me stocks" request. This is the
-  ranked-LIST / screener lens and the sister skill of `can-slim-grader`; when the user instead
-  names ONE ticker and wants it judged (a letter-by-letter C-A-N-S-L-I-M scorecard with a
-  BUY-RANGE / WATCH / AVOID verdict), use `can-slim-grader` instead. Output is a self-contained
-  interactive HTML dashboard by default (PDF on request).
-  This is analysis and decision support, never personalized investment advice and never trading.
+  Generate a ranked, sector-diversified LIST of stock recommendations by screening the market
+  with the CAN SLIM growth-investing methodology against live Interactive Brokers (IBKR) data
+  plus web research. Use whenever the user wants stock ideas, picks, or a screen — "recommend
+  some stocks", "what should I buy", "find me growth stocks", "screen for CAN SLIM stocks",
+  "what to add to my watchlist", "any good stocks right now", "build me a shortlist", or a
+  themed set ("recommend AI stocks", "best energy names") — even if they don't name CAN SLIM.
+  Asks how many names (default 20) and diversifies across non-overlapping groups. This is the
+  LIST/screener lens; to judge ONE named ticker (a C-A-N-S-L-I-M scorecard with a
+  BUY-RANGE/WATCH/AVOID verdict) use the sister skill `can-slim-grader` instead. Output: a
+  self-contained interactive HTML dashboard by default (PDF on request). Analysis and decision
+  support only — never personalized investment advice and never trading.
 ---
 
 # can-slim-recommend — CAN SLIM stock screener over IBKR
@@ -254,13 +249,8 @@ skill, but it isn't installed. You can add it from https://github.com/thewongdir
 - `scripts/relative_strength.py` — computes RS proxy, % off 52-week high, base depth/length,
   and breakout volume from IBKR OHLCV bars. Pure standard library; feed it the collected
   bars rather than eyeballing charts.
-- `assets/dashboard_template.html` — the default output. A self-contained, dark-themed
-  (light opt-in via `data-theme="light"`), interactive, print-optimized dashboard that is
-  **delivered as HTML by default** (opened straight in the browser) and can be **rendered to PDF
-  on request**, driven entirely by a `CONFIG` object you fill each
-  run: market verdict, the ranked table with the C·A·N·S·L·I scorecard and CAN-SLIM reasons,
-  watch/speculative/excluded tiers, and the portfolio note + disclaimer. Pure-ASCII source
-  (entity glyphs — no mojibake). The table **sorts** on any column header; a pick's
-  ticker becomes a **clickable link** that opens its `ibkr-review-ticker` report in an in-page
-  window when you set the pick's `reviewUrl`; and a top-of-page **leadership-map scatter**
-  (RS vs. % off high) renders automatically from CONFIG.
+- `assets/dashboard_template.html` — the default output (full behavior in Step 6): a
+  self-contained, dark-themed (light opt-in via `data-theme="light"`), print-optimized,
+  pure-ASCII dashboard driven by a `CONFIG` object. Delivered as interactive HTML by default
+  (PDF on request); sortable table, clickable-ticker review modal, and an auto-rendered
+  leadership-map scatter + acronym glossary.
