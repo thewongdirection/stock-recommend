@@ -1,0 +1,577 @@
+<!--
+  can-slim-recommend - CAN SLIM dashboard template.
+
+  HOW TO USE (per run):
+    1. Copy this file to the output location, e.g. canslim-recommendations.html
+    2. Fill the CONFIG object below with the screen's results. That is the ONLY thing you
+       edit - the page renders itself from CONFIG. Do not hand-edit the DOM.
+    3. Open / present the file. For PDF, print-to-PDF (the print CSS is A4/Letter-friendly).
+
+  RULES THE TEMPLATE ENFORCES BY CONVENTION:
+    - Every pick MUST carry a `reason` expressed ONLY in CAN SLIM terms (the seven letters,
+      bases/pivots, relative strength, new highs, volume/accumulation, leadership,
+      institutional sponsorship, market direction). No generic market chatter, no non-method
+      rationale. If a name can't be justified in CAN SLIM terms, it does not belong here.
+    - `scores` uses exactly "pass" | "partial" | "fail" for each of C,A,N,S,L,I.
+    - M (market direction) is deliberately NOT a per-row scorecard column. M is a single
+      market-wide gate, identical for every name at a given moment, so it lives in the
+      market-verdict banner at the top (CONFIG.market) - not repeated down a column.
+      Do not add a per-row M cell.
+    - Never put account-bound data (IDs, balances, positions) anywhere in CONFIG.
+
+  ENCODING: keep CONFIG text ASCII where practical (use "-" not an em-dash, "vs" not a
+    special glyph). The page is UTF-8, but ASCII content is bulletproof across viewers/PDF.
+
+  VISUALS (auto-rendered from CONFIG, no extra work):
+    - Leadership map: a top-of-page scatter of RS (x) vs % off 52-wk high (y, 0 at top) built
+      from each pick's `rs` and `offHigh` - leaders cluster top-right in the shaded "buyable"
+      zone. Shows only when >=2 picks have numeric rs+offHigh; otherwise it hides itself.
+    - Base sparkline: a per-row mini chart of the pick's base. Give a pick `spark` = an array
+      of the base's closing prices (oldest->newest) and optionally `pivot` = the buy-point
+      price. Omit `spark` and the cell shows a dash.
+
+  PER-TICKER DEEP DIVE: give a pick a `reviewUrl` (path/URL to the HTML produced by the
+    `ibkr-review-ticker` skill for that symbol, saved next to this file). The ticker then
+    becomes a link that opens that report in an in-page window (modal iframe). Omit it and
+    the ticker is plain text. For the iframe to load a local file, serve the dashboard and
+    the review files from the same folder (same origin) or open via a local server.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAN SLIM Stock Recommendations</title>
+<style>
+  /* Dark is the committed design of this dashboard (incl. the default PDF). A light palette
+     remains available via <html data-theme="light"> for anyone who wants it. */
+  :root{
+    --bg:#0d1017; --panel:#161b23; --ink:#e8ebf1; --muted:#9aa4b2; --line:#273040;
+    --accent:#6ea0ff; --accent-soft:#182236;
+    --pass:#3ddc91; --pass-bg:#0f2f22; --partial:#e6b04a; --partial-bg:#332711;
+    --fail:#ff6d64; --fail-bg:#3a1613; --chip:#1e2632;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  :root[data-theme="dark"]{--bg:#0d1017;--panel:#161b23;--ink:#e8ebf1;--muted:#9aa4b2;--line:#273040;
+      --accent:#6ea0ff;--accent-soft:#182236;--pass:#3ddc91;--pass-bg:#0f2f22;--partial:#e6b04a;
+      --partial-bg:#332711;--fail:#ff6d64;--fail-bg:#3a1613;--chip:#1e2632;}
+  :root[data-theme="light"]{--bg:#f7f8fa;--panel:#ffffff;--ink:#1a1d24;--muted:#5b6472;--line:#e4e7ec;
+      --accent:#1c64f2;--accent-soft:#e8f0fe;--pass:#0f9d58;--pass-bg:#e6f4ea;--partial:#c77700;
+      --partial-bg:#fdf1dd;--fail:#c5221f;--fail-bg:#fce8e6;--chip:#eef1f5;}
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 60px}
+  header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px;
+    border-bottom:2px solid var(--line);padding-bottom:16px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:13px}
+  .meta{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+
+  .market{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:18px 0 6px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .verdict{font-weight:700;font-size:14px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+  .verdict.up{background:var(--pass-bg);color:var(--pass)}
+  .verdict.pressure{background:var(--partial-bg);color:var(--partial)}
+  .verdict.down{background:var(--fail-bg);color:var(--fail)}
+  .market .imp{font-size:13.5px;color:var(--ink);flex:1;min-width:240px}
+  .dd{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+  .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--muted);margin:26px 0 10px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 10px;align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .dot.pass{background:var(--pass)} .dot.partial{background:var(--partial)} .dot.fail{background:var(--fail)}
+  .hint{font-size:11.5px;color:var(--muted);font-style:italic}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel);position:sticky;top:0}
+  thead th.sortable{cursor:pointer;user-select:none}
+  thead th.sortable:hover{color:var(--ink)}
+  th .arrow{opacity:.35;font-size:10px;margin-left:3px}
+  th.sorted .arrow{opacity:1;color:var(--accent)}
+  th.num{text-align:right}
+  tbody td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  .rk{font-family:var(--mono);color:var(--muted)}
+  .sym{font-family:var(--mono);font-weight:700;font-size:14px}
+  a.sym{color:var(--accent);text-decoration:none;cursor:pointer;border-bottom:1px dotted var(--accent)}
+  a.sym:hover{border-bottom-style:solid}
+  .co{color:var(--muted);font-size:12px}
+  .grp{font-size:12px}
+  td.num{font-family:var(--mono);white-space:nowrap;text-align:right}
+  .pos{color:var(--pass)} .neg{color:var(--fail)}
+  .scorecells{white-space:nowrap}
+  .sc{display:inline-flex;flex-direction:column;align-items:center;width:22px;margin-right:3px}
+  .sc .lab{font-size:9px;color:var(--muted);font-family:var(--mono)}
+  .sc .mk{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;margin-top:2px}
+  .mk.pass{background:var(--pass-bg);color:var(--pass)}
+  .mk.partial{background:var(--partial-bg);color:var(--partial)}
+  .mk.fail{background:var(--fail-bg);color:var(--fail)}
+  .reason{font-size:12.5px;color:var(--ink);min-width:260px;max-width:420px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px}
+  .card h3{margin:0 0 2px;font-size:15px;font-family:var(--mono)}
+  .card .co{margin-bottom:8px}
+  .card p{margin:0;font-size:13px}
+
+  .tier{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:10px}
+  .tier b{font-family:var(--mono)}
+  .tier .why{color:var(--muted);font-size:12.5px}
+
+  .callout{background:var(--accent-soft);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:8px;padding:12px 15px;font-size:13px;margin:14px 0}
+  footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px}
+  footer a{color:var(--accent)}
+  .sources a{margin-right:12px;white-space:nowrap}
+
+  /* modal window for the per-ticker ibkr-review-ticker report */
+  .modal{position:fixed;inset:0;background:rgba(10,14,20,.6);display:none;z-index:50;
+    align-items:center;justify-content:center;padding:24px}
+  .modal.open{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(1200px,96vw);
+    height:min(88vh,900px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .modal-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;
+    border-bottom:1px solid var(--line)}
+  .modal-bar .t{font-family:var(--mono);font-weight:700}
+  .modal-bar .acts a,.modal-bar .acts button{font-size:12px;margin-left:12px;color:var(--accent);
+    background:none;border:none;cursor:pointer;text-decoration:none}
+  .modal iframe{border:0;width:100%;height:100%;background:#fff}
+
+  /* leadership map (RS vs % off 52-wk high scatter) */
+  .leadmap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 8px}
+  .leadmap svg{display:block;width:100%;height:auto}
+  .lm-axis{stroke:var(--line);stroke-width:1}
+  .lm-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 4;opacity:.6}
+  .lm-ref{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 4;opacity:.7}
+  .lm-zone{fill:var(--accent-soft);opacity:.55}
+  .lm-zone-lab{fill:var(--accent);font-size:10px;font-family:var(--mono);opacity:.85}
+  .lm-axlab{fill:var(--muted);font-size:11px;font-family:var(--sans)}
+  .lm-tick{fill:var(--muted);font-size:9.5px;font-family:var(--mono)}
+  .lm-dot{fill:var(--accent);stroke:var(--panel);stroke-width:1.5}
+  .lm-dot.lead{fill:var(--pass)}
+  .lm-lab{fill:var(--ink);font-size:10px;font-family:var(--mono);font-weight:700}
+
+  /* per-row base sparkline */
+  .spark{display:block}
+  .spark .base{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+  .spark .pivot{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;opacity:.8}
+  .spark .now{stroke:var(--panel);stroke-width:1.2}
+  .spark .now.up{fill:var(--pass)} .spark .now.down{fill:var(--partial)}
+  .sparkempty{color:var(--muted);font-family:var(--mono);font-size:12px}
+
+  /* keep the dark design in the printed / PDF output (Chrome print-to-pdf honours exact) */
+  html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media print{
+    html,body{background:var(--bg)}
+    .wrap{max-width:none;padding:14mm}
+    .tablewrap,.card,.tier,.market,.leadmap{break-inside:avoid}
+    thead th{position:static}
+    .hint,th .arrow{display:none}
+    a{color:var(--accent);text-decoration:none}
+    .modal{display:none !important}
+    @page{margin:0}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="title">CAN SLIM Stock Recommendations</h1>
+      <div class="sub" id="subtitle">Screened with the CAN SLIM growth-investing methodology</div>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div class="market" id="market"></div>
+  <div id="shortfall"></div>
+
+  <div id="leadmapWrap" style="display:none">
+    <div class="section-title">Leadership map <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">- relative strength vs. distance below 52-wk high; leaders cluster top-right</span></div>
+    <div class="leadmap" id="leadmap"></div>
+  </div>
+
+  <div class="section-title">Recommended stocks <span id="countnote" style="font-weight:400;text-transform:none;letter-spacing:0"></span></div>
+  <div class="legend">
+    <span><span class="dot pass"></span>meets CAN SLIM threshold</span>
+    <span><span class="dot partial"></span>partial</span>
+    <span><span class="dot fail"></span>fails</span>
+    <span style="color:var(--muted)">Scorecard: C&middot;A&middot;N&middot;S&middot;L&middot;I &nbsp;|&nbsp; RS = 12-mo return vs. SPY (proxy)</span>
+  </div>
+  <div class="legend"><span class="hint">Click a column header to sort. Click a ticker to open its ibkr-review-ticker report.</span></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div id="rationaleWrap" style="display:none">
+    <div class="section-title">Per-name detail</div>
+    <div class="cards" id="cards"></div>
+  </div>
+
+  <div id="watchWrap" style="display:none">
+    <div class="section-title">Watch &mdash; leaders repairing bases (not yet buyable)</div>
+    <div id="watch"></div>
+  </div>
+
+  <div id="specWrap" style="display:none">
+    <div class="section-title">Strong charts that fail the earnings test &mdash; avoid (per method)</div>
+    <div id="spec"></div>
+  </div>
+
+  <div id="exclWrap" style="display:none">
+    <div class="section-title">Groups excluded (no leaders at highs)</div>
+    <div id="excl"></div>
+  </div>
+
+  <div class="callout" id="portfolio"></div>
+
+  <footer>
+    <div id="disclaimer"></div>
+    <div class="sources" id="sources" style="margin-top:8px"></div>
+    <div style="margin-top:8px">Methodology: CAN SLIM (C &mdash; current quarterly earnings &amp; sales &middot; A &mdash; annual earnings &amp; ROE &middot; N &mdash; new products/management/highs off a base &middot; S &mdash; supply/demand &amp; volume &middot; L &mdash; leader not laggard / relative strength &middot; I &mdash; institutional sponsorship &middot; M &mdash; market direction). Reasons are expressed only in these terms.</div>
+  </footer>
+</div>
+
+<!-- per-ticker report window -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-bar">
+      <span class="t" id="modalTitle"></span>
+      <span class="acts">
+        <a id="modalOpen" target="_blank" rel="noopener">Open in new tab</a>
+        <button id="modalClose" type="button">Close &times;</button>
+      </span>
+    </div>
+    <iframe id="modalFrame" title="ibkr-review-ticker report"></iframe>
+  </div>
+</div>
+
+<script>
+/* ============================ FILL THIS PER RUN ============================ */
+const CONFIG = {
+  title: "CAN SLIM Stock Recommendations",
+  subtitle: "Screened with the CAN SLIM growth-investing methodology - IBKR price/volume + FMP fundamentals + web",
+  generatedAt: "2026-07-13 (intraday)",
+  dataSource: "IBKR price/volume + FMP fundamentals + web research",
+  requested: 8,
+
+  market: {
+    verdict: "Confirmed uptrend - under mild pressure",
+    tone: "pressure",
+    distributionDays: "A few over ~5 weeks (est.); broad sell-off on 2026-07-13",
+    implication: "SPY sits near record highs above rising 50- and 200-day averages, so M is intact. But a sharp broad down day on 2026-07-13 and a hot May CPI (4.2%) add pressure, and leadership has NARROWED - many 2025 leaders (PLTR, APP, CRWV, ALAB, SMR) are now deep in corrections. Still buy only genuine leaders emerging from sound bases; normal 7-8% stops."
+  },
+
+  shortfall: "Requested 8; 6 cleared the full CAN SLIM filter. The tape is narrow right now - most former leaders are 30-85% off their highs, and several names still near their highs (JPM, TT) are relative-strength LAGGARDS that fail the Leader test. Per the method, returning the 6 genuine qualifiers rather than padding to 8 with weaker names.",
+
+  picks: [
+    {
+      rank:1, symbol:"LLY", company:"Eli Lilly", group:"Pharma (GLP-1)",
+      price:"1189.03", rs:"+29", offHigh:"5%", buyPoint:"~1,250 pivot", stop:"~1,150",
+      scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"C: Q1'26 sales +56% and EPS +156% YoY - massive and accelerating. A: multi-year EPS growth with very high ROE. N: new-drug cycle (GLP-1 franchise + oral candidate) driving a new-high base, ~5% off the 52-wk high. L: RS +29 vs SPY, group leader. I: deep institutional sponsorship. S: buybacks but a heavy mega-cap float (partial).",
+      spark:[924.37,1025.28,1059.7,1075.47,1010.31,1027.51,1071.44,1077.75,1080.36,1063.56,1038.4,1064.29,1037.15,1058.18,1040,1009.52,1051.99,990.33,985.08,906.7,878.24,935.58,939.47,927.03,883.96,963.33,948.45,1004.92,1065,1105,1131.42,1133,1098.57,1208.12,1213.91,1188.58],
+      pivot:1250
+    },
+    {
+      rank:2, symbol:"ANET", company:"Arista Networks", group:"AI networking",
+      price:"183.40", rs:"+51", offHigh:"3%", buyPoint:"~190 pivot", stop:"~169",
+      scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"C: Q1'26 sales +35% / non-GAAP EPS +32% YoY, accelerating. A: 3-yr growth with high ROE. N: AI-cluster networking (800G / EtherLink) pressing to new highs off a tight base, ~3% off high. L: RS +51, #1 in a leading group. I: strong institutional sponsorship. S: buybacks, large float (partial).",
+      spark:[134.65,131.37,117.43,130.68,128.59,124.76,131.12,131.84,133.6,122.89,129.83,136.34,141.74,137.49,141.59,132.79,133.5,132.89,133.57,131.22,120.77,126.68,147.35,164.23,176.91,172.7,141.77,141.97,154.03,159.47,154.27,163.24,169.67,157.6,159.99,186.96,181.96],
+      pivot:190
+    },
+    {
+      rank:3, symbol:"AMD", company:"Advanced Micro Devices", group:"Semiconductors",
+      price:"539.05", rs:"+260", offHigh:"8%", buyPoint:"~585 pivot (on a pullback)", stop:"~496",
+      scores:{C:"pass",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"L: RS +260, by far the strongest in the screen. C: data-center/AI sales ~+36% YoY with sharp EPS acceleration. A: EPS rising fast but ROE only ~7% (Xilinx intangibles) - partial. N: MI-series AI accelerators + hyperscaler deals, new-high base, ~8% off after today's pullback. I: heavy institutional. S: large float (partial).",
+      spark:[203.78,217.53,217.97,210.78,213.43,214.99,223.47,203.17,231.83,259.68,236.73,208.44,207.32,200.15,200.21,192.43,193.39,201.33,201.99,217.5,245.04,278.39,347.81,360.54,455.19,424.1,467.51,516.1,466.38,511.57,537.37,521.58,517.82,557.89,535.89],
+      pivot:585
+    },
+    {
+      rank:4, symbol:"GE", company:"GE Aerospace", group:"Aerospace",
+      price:"352.19", rs:"+20", offHigh:"8%", buyPoint:"~383 pivot", stop:"~325",
+      scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"partial",I:"pass"},
+      reason:"A: ROE ~47% with a multi-year earnings turnaround - top-tier. C: aerospace sales/EPS growing double digits. N: post-spin pure-play aerospace with a record engine backlog, new-high base ~8% off. L: RS +20 vs SPY over 12 mo, though shorter-term leadership has cooled - partial. I: broad institutional. S: large float (partial).",
+      spark:[308.95,307.27,304.82,287.44,298.45,283.94,299.81,307.21,315.14,320.75,321.59,325.12,293.87,306.79,321,315.41,343.22,342.26,323.11,299.69,286.79,282.81,281.16,308.35,304.13,284.6,286.51,297.15,281.53,302.84,323.76,328,335.3,357.64,369,377.52,359.27,352.28],
+      pivot:383
+    },
+    {
+      rank:5, symbol:"NET", company:"Cloudflare", group:"Internet software / edge",
+      price:"271.32", rs:"+27", offHigh:"3%", buyPoint:"~280 pivot", stop:"~258",
+      scores:{C:"pass",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"C: Q1'26 revenue +34% YoY. N: AI/edge platform (Workers AI) pushing to new highs, ~3% off and right at the pivot. L: RS +27 vs SPY. I: rising institutional sponsorship. A: thin GAAP profitability and a 20% restructuring keep ROE low - partial. S: large float (partial).",
+      spark:[253.3,232.81,210.6,186.38,200.21,200.95,202.44,195.68,202.39,196.02,182.78,184.17,173.44,177.35,173.21,195.85,177.14,172.19,195.19,212.45,215.42,203.02,211.69,166.99,200.99,207.07,217.5,196.13,197.56,216.17,241.82,250.11,228.48,224.06,237.24,242.41,268.4,271],
+      pivot:280
+    },
+    {
+      rank:6, symbol:"CRWD", company:"CrowdStrike", group:"Cybersecurity",
+      price:"187.65", rs:"+35", offHigh:"10%", buyPoint:"~210 pivot", stop:"~173",
+      scores:{C:"partial",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"L: RS +35 vs SPY, cybersecurity leader. N: Falcon platform / AI-SOC story, new-high base ~10% off after the pullback. C: revenue ~+21-24% YoY and ARR +24% - solid but just under the 25% bar (partial). A: profitability still normalizing, modest ROE (partial). I: strong institutional. S: large float (partial).",
+      spark:[131.83,135.75,134.95,134.39,122.67,127.29,128.01,126.2,120.32,120.3,113.4,117.65,113.47,113.12,110.35,98.88,107.41,97.15,92.99,107.25,110.45,102.25,92.4,99.78,94.76,105.99,112.03,113.91,131.94,148.52,165.87,182.75,167.76,170.7,171.22,175.27,193.98,187.18,187.89],
+      pivot:210
+    }
+  ],
+
+  rationale: [],
+  watch: [
+    { symbol:"JPM", company:"JPMorgan Chase", group:"Financials", offHigh:"1% off high",
+      note:"Sitting near a new high but 12-mo RS is NEGATIVE vs SPY (~-4) - a laggard making highs, which fails the Leader (L) test. Needs relative strength to turn up before it is a CAN SLIM buy." },
+    { symbol:"TT", company:"Trane Technologies", group:"Industrials (HVAC)", offHigh:"2% off high",
+      note:"At the top of a long ~12-week base but 12-mo RS lags SPY (~-11). Constructive chart, but leadership (L) must improve to qualify." },
+    { symbol:"NVDA", company:"NVIDIA", group:"Semiconductors", offHigh:"13% off high",
+      note:"Still strong on C/A, but ~13% below its high and slipping under the 50-day after today's drop - repairing a base, not yet a new-high buy (fails N for now)." }
+  ],
+  speculative: [],
+  excluded: [
+    { group:"Prior AI / momentum leaders", names:"PLTR, APP, CRWV, ALAB",
+      reason:"30-45% off their highs and below key averages - violate N (buy new highs off a sound base, not falling knives) and L." },
+    { group:"Nuclear / power (ex-leaders)", names:"SMR, CEG, VST, UEC",
+      reason:"SMR ~85% off its high (at 52-wk lows); CEG/VST/UEC 25-40%+ off highs. Leadership rolled over - none at new-high pivots." },
+    { group:"Precious-metals miners", names:"AEM, WPM, KGC, NEM",
+      reason:"Gold pulled back; miners 25-45% off highs - not at new-high pivots, so they fail N." }
+  ],
+
+  portfolioNote: "The method favors concentration (4-6 names), so treat this as a research shortlist to narrow, not a buy-all list. Cut every loss at 7-8% (no exceptions), average up never down, take many 20-25% gains but let a powerful leader run if it jumps 20%+ in 1-3 weeks. Re-check M - with a broad down day just printed, size in gradually and raise cash if distribution days keep building.",
+  disclaimer: "Informational decision support, not investment advice; not a financial advisor. Figures are as-of 2026-07-13 intraday and approximate; RS is a relative-strength proxy (12-mo vs SPY computed from IBKR weekly bars), not a full-market 1-99 rating; some fundamentals are from web research and may lag. Nothing here is an order; no orders were or will be placed.",
+  sources: [
+    { label:"Arista Q1'26 earnings (SEC 8-K)", url:"https://www.sec.gov/Archives/edgar/data/0001596532/000159653226000074/ex991q126-earningsrelease.htm" },
+    { label:"CrowdStrike Q1 FY26 (SEC 8-K)", url:"https://www.sec.gov/Archives/edgar/data/0001535527/000153552726000022/crwd-20260603xex991.htm" },
+    { label:"Cloudflare Q1'26 results", url:"https://www.stocktitan.net/sec-filings/NET/8-k-cloudflare-inc-reports-material-event-070b89301d60.html" },
+    { label:"Eli Lilly Q1'26 results", url:"https://investor.lilly.com/news-releases/news-release-details/lilly-reports-first-quarter-2026-financial-results-raises-full" },
+    { label:"Market outlook (Forbes, 2H 2026)", url:"https://www.forbes.com/sites/investor-hub/article/what-to-expect-for-the-stock-markets-last-6-months-of-2026/" }
+  ]
+};
+/* ========================================================================== */
+
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=> (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rsClass = (v)=> /^[-\u2212]/.test(String(v).trim()) ? "neg" : "pos";
+const MK = {pass:"&#10003;", partial:"~", fail:"&#10007;"};   // check / tilde / cross as ASCII entities
+// parse a messy numeric string ("+51","-14%","1,188",">1,220 breakout","~178 pivot") -> number|NaN
+const num = (s)=>{ if(s==null) return NaN; const m=String(s).replace(/,/g,'').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):NaN; };
+const passCount = (sc={})=> ["C","A","N","S","L","I"].reduce((n,k)=> n + (sc[k]==="pass"?1:sc[k]==="partial"?0.5:0), 0);
+
+document.title = CONFIG.title || "CAN SLIM Recommendations";
+$("title").textContent = CONFIG.title || document.title;
+if (CONFIG.subtitle) $("subtitle").textContent = CONFIG.subtitle;
+$("meta").innerHTML = "As of " + esc(CONFIG.generatedAt||"") + "<br>" + esc(CONFIG.dataSource||"");
+
+const m = CONFIG.market||{};
+$("market").innerHTML =
+  '<span class="verdict '+esc(m.tone||'up')+'">'+esc(m.verdict||'')+'</span>'+
+  '<div class="imp"><b>M &mdash; market direction:</b> '+esc(m.implication||'')+'</div>'+
+  (m.distributionDays?'<div class="dd">Distribution days: '+esc(m.distributionDays)+'</div>':'');
+
+const picks = (CONFIG.picks||[]).slice();
+$("countnote").textContent = CONFIG.requested ? "- "+picks.length+" of "+CONFIG.requested+" requested qualified" : "- "+picks.length;
+if (CONFIG.shortfall && picks.length < (CONFIG.requested||Infinity)){
+  $("shortfall").innerHTML = '<div class="callout">'+esc(CONFIG.shortfall)+'</div>';
+}
+
+// ---- sortable header ----
+const COLS = [
+  {key:"rank",   label:"#",            type:"num",  cls:"",     get:p=>num(p.rank)},
+  {key:"symbol", label:"Stock",        type:"text", cls:"",     get:p=>(p.symbol||"")},
+  {key:"group",  label:"Group",        type:"text", cls:"",     get:p=>(p.group||"")},
+  {key:"price",  label:"Price",        type:"num",  cls:"num",  get:p=>num(p.price)},
+  {key:"rs",     label:"RS",           type:"num",  cls:"num",  get:p=>num(p.rs)},
+  {key:"offHigh",label:"% off 52w hi", type:"num",  cls:"num",  get:p=>num(p.offHigh)},
+  {key:"base",   label:"Base",         type:"text", cls:"",     get:p=>"", noSort:true},
+  {key:"score",  label:"C&middot;A&middot;N&middot;S&middot;L&middot;I", type:"num", cls:"", get:p=>passCount(p.scores)},
+  {key:"buyPoint",label:"Buy point",   type:"text", cls:"num",  get:p=>(p.buyPoint||""), noSort:true},
+  {key:"stop",   label:"Stop",         type:"text", cls:"num",  get:p=>(p.stop||""),      noSort:true},
+  {key:"reason", label:"Why (CAN SLIM read)", type:"text", cls:"", get:p=>(p.reason||""), noSort:true},
+];
+let sortState = {key:null, dir:1};
+
+$("head").innerHTML = COLS.map(c=>{
+  const sortable = !c.noSort;
+  return '<th class="'+c.cls+(sortable?' sortable':'')+'" data-key="'+c.key+'">'+c.label+
+    (sortable?' <span class="arrow">&#9662;</span>':'')+'</th>';
+}).join('');
+
+// ---- per-row base sparkline (from p.spark = array of closes; optional p.pivot) ----
+function sparkSVG(p){
+  const raw = Array.isArray(p.spark) ? p.spark.map(Number).filter(v=>isFinite(v)) : [];
+  if (raw.length < 2) return '<span class="sparkempty" title="no base series provided">&ndash;</span>';
+  const W=96, H=30, pad=3;
+  const pv = isFinite(num(p.pivot)) ? num(p.pivot) : null;
+  let lo=Math.min(...raw), hi=Math.max(...raw);
+  if (pv!=null){ lo=Math.min(lo,pv); hi=Math.max(hi,pv); }
+  if (hi===lo){ hi+=1; lo-=1; }
+  const x=(i)=> pad + i*(W-2*pad)/(raw.length-1);
+  const y=(v)=> pad + (hi-v)*(H-2*pad)/(hi-lo);
+  const pts = raw.map((v,i)=> x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ');
+  const last=raw[raw.length-1];
+  const up = pv!=null ? last>=pv : last>=raw[0];
+  const pivotLine = pv!=null
+    ? '<line class="pivot" x1="'+pad+'" y1="'+y(pv).toFixed(1)+'" x2="'+(W-pad)+'" y2="'+y(pv).toFixed(1)+'"/>' : '';
+  return '<svg class="spark" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" '+
+    'role="img" aria-label="base shape">'+
+    pivotLine+
+    '<polyline class="base" points="'+pts+'"/>'+
+    '<circle class="now '+(up?'up':'down')+'" cx="'+x(raw.length-1).toFixed(1)+'" cy="'+y(last).toFixed(1)+'" r="2.6"/>'+
+    '</svg>';
+}
+
+function renderRows(list){
+  $("rows").innerHTML = list.map(p=>{
+    const tk = p.reviewUrl
+      ? '<a class="sym" data-review="'+esc(p.reviewUrl)+'" data-sym="'+esc(p.symbol)+'">'+esc(p.symbol)+'</a>'
+      : '<span class="sym">'+esc(p.symbol)+'</span>';
+    const sc = ["C","A","N","S","L","I"].map(k=>{
+      const t=(p.scores&&p.scores[k])||'fail';
+      return '<span class="sc"><span class="lab">'+k+'</span><span class="mk '+t+'">'+MK[t]+'</span></span>';
+    }).join('');
+    return '<tr>'+
+      '<td class="rk">'+esc(p.rank)+'</td>'+
+      '<td>'+tk+'<div class="co">'+esc(p.company)+'</div></td>'+
+      '<td class="grp">'+esc(p.group)+'</td>'+
+      '<td class="num">'+esc(p.price)+'</td>'+
+      '<td class="num '+rsClass(p.rs)+'">'+esc(p.rs)+'</td>'+
+      '<td class="num">'+esc(p.offHigh)+'</td>'+
+      '<td>'+sparkSVG(p)+'</td>'+
+      '<td class="scorecells">'+sc+'</td>'+
+      '<td class="num">'+esc(p.buyPoint)+'</td>'+
+      '<td class="num">'+esc(p.stop)+'</td>'+
+      '<td class="reason">'+esc(p.reason)+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="'+COLS.length+'" style="padding:18px;color:var(--muted)">No names cleared the full CAN SLIM filter in the current market. See notes above.</td></tr>';
+}
+function applySort(key){
+  const col = COLS.find(c=>c.key===key); if(!col||col.noSort) return;
+  sortState.dir = (sortState.key===key) ? -sortState.dir : 1;
+  sortState.key = key;
+  const dir = sortState.dir;
+  const sorted = picks.slice().sort((a,b)=>{
+    let va=col.get(a), vb=col.get(b);
+    if(col.type==="num"){ const na=isNaN(va), nb=isNaN(vb); if(na&&nb)return 0; if(na)return 1; if(nb)return -1; return (va-vb)*dir; }
+    return String(va).localeCompare(String(vb),undefined,{sensitivity:'base'})*dir;
+  });
+  renderRows(sorted);
+  document.querySelectorAll('th').forEach(th=>{
+    th.classList.toggle('sorted', th.dataset.key===key);
+    const ar=th.querySelector('.arrow'); if(ar) ar.innerHTML = th.dataset.key===key ? (dir>0?'&#9652;':'&#9662;') : '&#9662;';
+  });
+}
+$("head").addEventListener('click', e=>{ const th=e.target.closest('th'); if(th&&th.dataset.key) applySort(th.dataset.key); });
+renderRows(picks);
+
+// ---- leadership map: RS (x) vs % off 52-wk high (y, 0 at top) ----
+function buildLeadMap(){
+  const pts = picks.map(p=>({sym:p.symbol, x:num(p.rs), y:num(p.offHigh),
+                             lead:passCount(p.scores)>=4}))
+                   .filter(d=> isFinite(d.x) && isFinite(d.y));
+  if (pts.length < 2) return;   // nothing meaningful to plot
+  $("leadmapWrap").style.display='block';
+
+  const W=720, H=320, mL=46, mR=18, mT=18, mB=42;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  // signed-sqrt x-scale so one extreme-RS outlier doesn't compress the rest of the field
+  const tx=(v)=> Math.sign(v)*Math.sqrt(Math.abs(v));
+  let xsR=pts.map(d=>d.x), ys=pts.map(d=>d.y);
+  let xMinR=Math.min(...xsR,0), xMaxR=Math.max(...xsR,0);
+  let yMin=0, yMax=Math.max(...ys, 8);
+  const xPadR=(xMaxR-xMinR||1)*0.08, ypad=(yMax-yMin||1)*0.08;
+  xMinR-=xPadR; xMaxR+=xPadR; yMax+=ypad;              // yMin stays 0 (at the high)
+  const txMin=tx(xMinR), txMax=tx(xMaxR);
+  const X=(v)=> mL + (tx(v)-txMin)/((txMax-txMin)||1)*pw;
+  const Y=(v)=> mT + (v-yMin)/((yMax-yMin)||1)*ph;      // 0% -> top
+
+  const buyBand=8;                                     // within 8% of high = buyable zone
+  const yBuy=Y(Math.min(buyBand,yMax)), xZero=X(Math.max(0,xMinR));
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="RS vs percent off 52-week high scatter">';
+  // buyable-leaders zone: RS>=0 and within buy band of the high (top-right)
+  if (xMaxR>0){
+    svg+='<rect class="lm-zone" x="'+xZero.toFixed(1)+'" y="'+mT+'" '+
+         'width="'+(mL+pw-xZero).toFixed(1)+'" height="'+(yBuy-mT).toFixed(1)+'"/>'+
+         '<text class="lm-zone-lab" x="'+(mL+pw-4)+'" y="'+(mT+13)+'" text-anchor="end">buyable leaders</text>';
+  }
+  // axes
+  svg+='<line class="lm-axis" x1="'+mL+'" y1="'+(mT+ph)+'" x2="'+(mL+pw)+'" y2="'+(mT+ph)+'"/>'+
+       '<line class="lm-axis" x1="'+mL+'" y1="'+mT+'" x2="'+mL+'" y2="'+(mT+ph)+'"/>';
+  // reference lines: RS=0 (vs SPY) and the buy band
+  if (xMinR<0 && xMaxR>0) svg+='<line class="lm-ref" x1="'+X(0).toFixed(1)+'" y1="'+mT+'" x2="'+X(0).toFixed(1)+'" y2="'+(mT+ph)+'"/>';
+  if (buyBand<yMax) svg+='<line class="lm-ref" x1="'+mL+'" y1="'+yBuy.toFixed(1)+'" x2="'+(mL+pw)+'" y2="'+yBuy.toFixed(1)+'"/>';
+  // axis labels
+  svg+='<text class="lm-axlab" x="'+(mL+pw/2)+'" y="'+(H-8)+'" text-anchor="middle">Relative strength (12-mo vs SPY, proxy; sqrt scale) &#8594; stronger</text>'+
+       '<text class="lm-axlab" transform="translate(13,'+(mT+ph/2)+') rotate(-90)" text-anchor="middle">&#8592; nearer 52-wk high (% below)</text>';
+  // y ticks (0 at top, yMax at bottom)
+  [0, buyBand, Math.round(yMax)].forEach(t=>{ if(t<=yMax){
+    svg+='<text class="lm-tick" x="'+(mL-6)+'" y="'+(Y(t)+3).toFixed(1)+'" text-anchor="end">'+t+'%</text>';
+  }});
+  // x ticks: evenly spaced in transformed space, labeled with the actual (nonlinear) RS value
+  for(let i=0;i<=4;i++){ const txv=txMin+i/4*(txMax-txMin), raw=Math.sign(txv)*txv*txv, px=mL+i/4*pw;
+    svg+='<text class="lm-tick" x="'+px.toFixed(1)+'" y="'+(mT+ph+15)+'" text-anchor="middle">'+(raw>0?'+':'')+Math.round(raw)+'</text>';
+  }
+  // dots + labels
+  pts.forEach(d=>{
+    const cx=X(d.x), cy=Y(d.y);
+    svg+='<circle class="lm-dot'+(d.lead?' lead':'')+'" cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="4.5"/>'+
+         '<text class="lm-lab" x="'+(cx+7).toFixed(1)+'" y="'+(cy+3.5).toFixed(1)+'">'+esc(d.sym)+'</text>';
+  });
+  svg+='</svg>';
+  $("leadmap").innerHTML=svg;
+}
+buildLeadMap();
+
+// ---- per-ticker report modal ----
+function openReview(url, sym){
+  $("modalTitle").textContent = (sym?sym+" - ":"") + "ibkr-review-ticker report";
+  $("modalOpen").href = url;
+  $("modalFrame").src = url;
+  $("modal").classList.add('open');
+}
+function closeReview(){ $("modal").classList.remove('open'); $("modalFrame").src="about:blank"; }
+$("rows").addEventListener('click', e=>{
+  const a=e.target.closest('a[data-review]'); if(!a) return;
+  e.preventDefault(); openReview(a.dataset.review, a.dataset.sym);
+});
+$("modalClose").addEventListener('click', closeReview);
+$("modal").addEventListener('click', e=>{ if(e.target.id==='modal') closeReview(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeReview(); });
+
+// ---- optional sections ----
+if ((CONFIG.rationale||[]).length){
+  $("rationaleWrap").style.display='block';
+  $("cards").innerHTML = CONFIG.rationale.map(r=>
+    '<div class="card"><h3>'+esc(r.symbol)+'</h3><div class="co">'+esc(r.company||'')+'</div><p>'+esc(r.text)+'</p></div>').join('');
+}
+if ((CONFIG.watch||[]).length){
+  $("watchWrap").style.display='block';
+  $("watch").innerHTML = CONFIG.watch.map(w=>
+    '<div class="tier"><b>'+esc(w.symbol)+'</b> '+esc(w.company||'')+' &middot; '+esc(w.group||'')+' &middot; <span class="num neg">'+esc(w.offHigh||'')+'</span><div class="why">'+esc(w.note||'')+'</div></div>').join('');
+}
+if ((CONFIG.speculative||[]).length){
+  $("specWrap").style.display='block';
+  $("spec").innerHTML = CONFIG.speculative.map(s=>
+    '<div class="tier"><b>'+esc(s.symbol)+'</b> '+esc(s.company||'')+'<div class="why">'+esc(s.reason||'')+'</div></div>').join('');
+}
+if ((CONFIG.excluded||[]).length){
+  $("exclWrap").style.display='block';
+  $("excl").innerHTML = CONFIG.excluded.map(x=>
+    '<div class="tier"><b>'+esc(x.group)+'</b> <span class="why">- '+esc(x.names||'')+'</span><div class="why">'+esc(x.reason||'')+'</div></div>').join('');
+}
+$("portfolio").innerHTML = '<b>Portfolio &amp; risk (per the method):</b> '+esc(CONFIG.portfolioNote||'');
+$("disclaimer").textContent = CONFIG.disclaimer||'';
+if ((CONFIG.sources||[]).length){
+  $("sources").innerHTML = "Sources: " + CONFIG.sources.map(s=>'<a href="'+esc(s.url)+'">'+esc(s.label)+'</a>').join('');
+}
+</script>
+</body>
+</html>
