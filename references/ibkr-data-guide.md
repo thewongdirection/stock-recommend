@@ -25,6 +25,12 @@ access are entirely out of scope, even if asked mid-run.
 
 ---
 
+**Freshness (applies to every step below): always pull fresh.** Re-issue every IBKR / FMP /
+web call on each run — do not reuse quotes, bars, `contract_id`s, RS, or candidate lists from a
+previous run, from earlier in the conversation, from memory, or from a cached output file. IBKR
+`get_price_history` responses carry an `expires` field; if it is already in the past, or a
+snapshot's timestamp is stale, refetch. Timestamp the output with the actual pull time.
+
 ## Step 0 — Candidate generation (the hardest part)
 
 The **IBKR** connector has no bulk market screener, so build a candidate universe from

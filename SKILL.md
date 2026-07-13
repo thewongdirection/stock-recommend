@@ -61,6 +61,18 @@ letter (IBKR covers N/S/L/M; web research covers C/A and ownership).
 
 Work in order. Scale research depth to the request; keep the user informed as you go.
 
+> **ALWAYS pull fresh data — every run, regardless of prior usage.** Treat every invocation as a
+> cold start. Re-pull live IBKR price snapshots, price history, and themes; **re-resolve every
+> `contract_id`**; and re-run the web research **this run**. **Never reuse** a prior run's
+> figures, candidate list, `contract_id`s, RS values, base metrics, or an already-filled
+> `CONFIG` — not from earlier in this conversation, not from memory, not from a saved/cached
+> output file. Prices, RS, and % off-high go stale within minutes during market hours, so a
+> carried-over number can be silently wrong. Always **make the connector calls again** and build
+> `CONFIG` from the values you just fetched. Stamp `generatedAt` / `dataProvenance` with the
+> actual pull time of *this* run; if a connector hands back a cached/expired snapshot (e.g. an
+> `expires` timestamp in the past, or a stale market timestamp), refetch and, if it is still
+> stale, flag it in `dataWarning`.
+
 ### 1 — Set the count and scope
 Confirm **how many names** to return (**default 20**) and any scope the user gave (a theme
 like "AI"/"energy", their watchlist, market-cap preference). Default universe: **US-listed
