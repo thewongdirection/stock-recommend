@@ -26,9 +26,6 @@
     - Leadership map: a top-of-page scatter of RS (x) vs % off 52-wk high (y, 0 at top) built
       from each pick's `rs` and `offHigh` - leaders cluster top-right in the shaded "buyable"
       zone. Shows only when >=2 picks have numeric rs+offHigh; otherwise it hides itself.
-    - Base sparkline: a per-row mini chart of the pick's base. Give a pick `spark` = an array
-      of the base's closing prices (oldest->newest) and optionally `pivot` = the buy-point
-      price. Omit `spark` and the cell shows a dash.
 
   PER-TICKER DEEP DIVE: give a pick a `reviewUrl` (path/URL to the HTML produced by the
     `ibkr-review-ticker` skill for that symbol, saved next to this file). The ticker then
@@ -162,14 +159,6 @@
   .lm-dot.lead{fill:var(--pass)}
   .lm-lab{fill:var(--ink);font-size:10px;font-family:var(--mono);font-weight:700}
 
-  /* per-row base sparkline */
-  .spark{display:block}
-  .spark .base{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
-  .spark .pivot{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;opacity:.8}
-  .spark .now{stroke:var(--panel);stroke-width:1.2}
-  .spark .now.up{fill:var(--pass)} .spark .now.down{fill:var(--partial)}
-  .sparkempty{color:var(--muted);font-family:var(--mono);font-size:12px}
-
   /* keep the dark design in the printed / PDF output (Chrome print-to-pdf honours exact) */
   html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @media print{
@@ -289,49 +278,37 @@ const CONFIG = {
       rank:1, symbol:"LLY", company:"Eli Lilly", group:"Pharma (GLP-1)",
       price:"1189.03", rs:"+29", offHigh:"5%", buyPoint:"~1,250 pivot", stop:"~1,150",
       scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
-      reason:"C: Q1'26 sales +56% and EPS +156% YoY - massive and accelerating. A: multi-year EPS growth with very high ROE. N: new-drug cycle (GLP-1 franchise + oral candidate) driving a new-high base, ~5% off the 52-wk high. L: RS +29 vs SPY, group leader. I: deep institutional sponsorship. S: buybacks but a heavy mega-cap float (partial).",
-      spark:[924.37,1025.28,1059.7,1075.47,1010.31,1027.51,1071.44,1077.75,1080.36,1063.56,1038.4,1064.29,1037.15,1058.18,1040,1009.52,1051.99,990.33,985.08,906.7,878.24,935.58,939.47,927.03,883.96,963.33,948.45,1004.92,1065,1105,1131.42,1133,1098.57,1208.12,1213.91,1188.58],
-      pivot:1250
+      reason:"C: Q1'26 sales +56% and EPS +156% YoY - massive and accelerating. A: multi-year EPS growth with very high ROE. N: new-drug cycle (GLP-1 franchise + oral candidate) driving a new-high base, ~5% off the 52-wk high. L: RS +29 vs SPY, group leader. I: deep institutional sponsorship. S: buybacks but a heavy mega-cap float (partial)."
     },
     {
       rank:2, symbol:"ANET", company:"Arista Networks", group:"AI networking",
       price:"183.40", rs:"+51", offHigh:"3%", buyPoint:"~190 pivot", stop:"~169",
       scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
-      reason:"C: Q1'26 sales +35% / non-GAAP EPS +32% YoY, accelerating. A: 3-yr growth with high ROE. N: AI-cluster networking (800G / EtherLink) pressing to new highs off a tight base, ~3% off high. L: RS +51, #1 in a leading group. I: strong institutional sponsorship. S: buybacks, large float (partial).",
-      spark:[134.65,131.37,117.43,130.68,128.59,124.76,131.12,131.84,133.6,122.89,129.83,136.34,141.74,137.49,141.59,132.79,133.5,132.89,133.57,131.22,120.77,126.68,147.35,164.23,176.91,172.7,141.77,141.97,154.03,159.47,154.27,163.24,169.67,157.6,159.99,186.96,181.96],
-      pivot:190
+      reason:"C: Q1'26 sales +35% / non-GAAP EPS +32% YoY, accelerating. A: 3-yr growth with high ROE. N: AI-cluster networking (800G / EtherLink) pressing to new highs off a tight base, ~3% off high. L: RS +51, #1 in a leading group. I: strong institutional sponsorship. S: buybacks, large float (partial)."
     },
     {
       rank:3, symbol:"AMD", company:"Advanced Micro Devices", group:"Semiconductors",
       price:"539.05", rs:"+260", offHigh:"8%", buyPoint:"~585 pivot (on a pullback)", stop:"~496",
       scores:{C:"pass",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
-      reason:"L: RS +260, by far the strongest in the screen. C: data-center/AI sales ~+36% YoY with sharp EPS acceleration. A: EPS rising fast but ROE only ~7% (Xilinx intangibles) - partial. N: MI-series AI accelerators + hyperscaler deals, new-high base, ~8% off after today's pullback. I: heavy institutional. S: large float (partial).",
-      spark:[203.78,217.53,217.97,210.78,213.43,214.99,223.47,203.17,231.83,259.68,236.73,208.44,207.32,200.15,200.21,192.43,193.39,201.33,201.99,217.5,245.04,278.39,347.81,360.54,455.19,424.1,467.51,516.1,466.38,511.57,537.37,521.58,517.82,557.89,535.89],
-      pivot:585
+      reason:"L: RS +260, by far the strongest in the screen. C: data-center/AI sales ~+36% YoY with sharp EPS acceleration. A: EPS rising fast but ROE only ~7% (Xilinx intangibles) - partial. N: MI-series AI accelerators + hyperscaler deals, new-high base, ~8% off after today's pullback. I: heavy institutional. S: large float (partial)."
     },
     {
       rank:4, symbol:"GE", company:"GE Aerospace", group:"Aerospace",
       price:"352.19", rs:"+20", offHigh:"8%", buyPoint:"~383 pivot", stop:"~325",
       scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"partial",I:"pass"},
-      reason:"A: ROE ~47% with a multi-year earnings turnaround - top-tier. C: aerospace sales/EPS growing double digits. N: post-spin pure-play aerospace with a record engine backlog, new-high base ~8% off. L: RS +20 vs SPY over 12 mo, though shorter-term leadership has cooled - partial. I: broad institutional. S: large float (partial).",
-      spark:[308.95,307.27,304.82,287.44,298.45,283.94,299.81,307.21,315.14,320.75,321.59,325.12,293.87,306.79,321,315.41,343.22,342.26,323.11,299.69,286.79,282.81,281.16,308.35,304.13,284.6,286.51,297.15,281.53,302.84,323.76,328,335.3,357.64,369,377.52,359.27,352.28],
-      pivot:383
+      reason:"A: ROE ~47% with a multi-year earnings turnaround - top-tier. C: aerospace sales/EPS growing double digits. N: post-spin pure-play aerospace with a record engine backlog, new-high base ~8% off. L: RS +20 vs SPY over 12 mo, though shorter-term leadership has cooled - partial. I: broad institutional. S: large float (partial)."
     },
     {
       rank:5, symbol:"NET", company:"Cloudflare", group:"Internet software / edge",
       price:"271.32", rs:"+27", offHigh:"3%", buyPoint:"~280 pivot", stop:"~258",
       scores:{C:"pass",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
-      reason:"C: Q1'26 revenue +34% YoY. N: AI/edge platform (Workers AI) pushing to new highs, ~3% off and right at the pivot. L: RS +27 vs SPY. I: rising institutional sponsorship. A: thin GAAP profitability and a 20% restructuring keep ROE low - partial. S: large float (partial).",
-      spark:[253.3,232.81,210.6,186.38,200.21,200.95,202.44,195.68,202.39,196.02,182.78,184.17,173.44,177.35,173.21,195.85,177.14,172.19,195.19,212.45,215.42,203.02,211.69,166.99,200.99,207.07,217.5,196.13,197.56,216.17,241.82,250.11,228.48,224.06,237.24,242.41,268.4,271],
-      pivot:280
+      reason:"C: Q1'26 revenue +34% YoY. N: AI/edge platform (Workers AI) pushing to new highs, ~3% off and right at the pivot. L: RS +27 vs SPY. I: rising institutional sponsorship. A: thin GAAP profitability and a 20% restructuring keep ROE low - partial. S: large float (partial)."
     },
     {
       rank:6, symbol:"CRWD", company:"CrowdStrike", group:"Cybersecurity",
       price:"187.65", rs:"+35", offHigh:"10%", buyPoint:"~210 pivot", stop:"~173",
       scores:{C:"partial",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
-      reason:"L: RS +35 vs SPY, cybersecurity leader. N: Falcon platform / AI-SOC story, new-high base ~10% off after the pullback. C: revenue ~+21-24% YoY and ARR +24% - solid but just under the 25% bar (partial). A: profitability still normalizing, modest ROE (partial). I: strong institutional. S: large float (partial).",
-      spark:[131.83,135.75,134.95,134.39,122.67,127.29,128.01,126.2,120.32,120.3,113.4,117.65,113.47,113.12,110.35,98.88,107.41,97.15,92.99,107.25,110.45,102.25,92.4,99.78,94.76,105.99,112.03,113.91,131.94,148.52,165.87,182.75,167.76,170.7,171.22,175.27,193.98,187.18,187.89],
-      pivot:210
+      reason:"L: RS +35 vs SPY, cybersecurity leader. N: Falcon platform / AI-SOC story, new-high base ~10% off after the pullback. C: revenue ~+21-24% YoY and ARR +24% - solid but just under the 25% bar (partial). A: profitability still normalizing, modest ROE (partial). I: strong institutional. S: large float (partial)."
     }
   ],
 
@@ -409,7 +386,6 @@ const COLS = [
   {key:"price",  label:"Price",        type:"num",  cls:"num",  get:p=>num(p.price)},
   {key:"rs",     label:"RS",           type:"num",  cls:"num",  get:p=>num(p.rs)},
   {key:"offHigh",label:"% off 52w hi", type:"num",  cls:"num",  get:p=>num(p.offHigh)},
-  {key:"base",   label:"Base",         type:"text", cls:"",     get:p=>"", noSort:true},
   {key:"score",  label:"C&middot;A&middot;N&middot;S&middot;L&middot;I", type:"num", cls:"", get:p=>passCount(p.scores)},
   {key:"buyPoint",label:"Buy point",   type:"text", cls:"num",  get:p=>(p.buyPoint||""), noSort:true},
   {key:"stop",   label:"Stop",         type:"text", cls:"num",  get:p=>(p.stop||""),      noSort:true},
@@ -422,30 +398,6 @@ $("head").innerHTML = COLS.map(c=>{
   return '<th class="'+c.cls+(sortable?' sortable':'')+'" data-key="'+c.key+'">'+c.label+
     (sortable?' <span class="arrow">&#9662;</span>':'')+'</th>';
 }).join('');
-
-// ---- per-row base sparkline (from p.spark = array of closes; optional p.pivot) ----
-function sparkSVG(p){
-  const raw = Array.isArray(p.spark) ? p.spark.map(Number).filter(v=>isFinite(v)) : [];
-  if (raw.length < 2) return '<span class="sparkempty" title="no base series provided">&ndash;</span>';
-  const W=96, H=30, pad=3;
-  const pv = isFinite(num(p.pivot)) ? num(p.pivot) : null;
-  let lo=Math.min(...raw), hi=Math.max(...raw);
-  if (pv!=null){ lo=Math.min(lo,pv); hi=Math.max(hi,pv); }
-  if (hi===lo){ hi+=1; lo-=1; }
-  const x=(i)=> pad + i*(W-2*pad)/(raw.length-1);
-  const y=(v)=> pad + (hi-v)*(H-2*pad)/(hi-lo);
-  const pts = raw.map((v,i)=> x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ');
-  const last=raw[raw.length-1];
-  const up = pv!=null ? last>=pv : last>=raw[0];
-  const pivotLine = pv!=null
-    ? '<line class="pivot" x1="'+pad+'" y1="'+y(pv).toFixed(1)+'" x2="'+(W-pad)+'" y2="'+y(pv).toFixed(1)+'"/>' : '';
-  return '<svg class="spark" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" '+
-    'role="img" aria-label="base shape">'+
-    pivotLine+
-    '<polyline class="base" points="'+pts+'"/>'+
-    '<circle class="now '+(up?'up':'down')+'" cx="'+x(raw.length-1).toFixed(1)+'" cy="'+y(last).toFixed(1)+'" r="2.6"/>'+
-    '</svg>';
-}
 
 function renderRows(list){
   $("rows").innerHTML = list.map(p=>{
@@ -463,7 +415,6 @@ function renderRows(list){
       '<td class="num">'+esc(p.price)+'</td>'+
       '<td class="num '+rsClass(p.rs)+'">'+esc(p.rs)+'</td>'+
       '<td class="num">'+esc(p.offHigh)+'</td>'+
-      '<td>'+sparkSVG(p)+'</td>'+
       '<td class="scorecells">'+sc+'</td>'+
       '<td class="num">'+esc(p.buyPoint)+'</td>'+
       '<td class="num">'+esc(p.stop)+'</td>'+

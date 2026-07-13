@@ -26,9 +26,6 @@
     - Leadership map: a top-of-page scatter of RS (x) vs % off 52-wk high (y, 0 at top) built
       from each pick's `rs` and `offHigh` - leaders cluster top-right in the shaded "buyable"
       zone. Shows only when >=2 picks have numeric rs+offHigh; otherwise it hides itself.
-    - Base sparkline: a per-row mini chart of the pick's base. Give a pick `spark` = an array
-      of the base's closing prices (oldest->newest) and optionally `pivot` = the buy-point
-      price. Omit `spark` and the cell shows a dash.
 
   PER-TICKER DEEP DIVE: give a pick a `reviewUrl` (path/URL to the HTML produced by the
     `ibkr-review-ticker` skill for that symbol, saved next to this file). The ticker then
@@ -162,14 +159,6 @@
   .lm-dot.lead{fill:var(--pass)}
   .lm-lab{fill:var(--ink);font-size:10px;font-family:var(--mono);font-weight:700}
 
-  /* per-row base sparkline */
-  .spark{display:block}
-  .spark .base{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
-  .spark .pivot{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;opacity:.8}
-  .spark .now{stroke:var(--panel);stroke-width:1.2}
-  .spark .now.up{fill:var(--pass)} .spark .now.down{fill:var(--partial)}
-  .sparkempty{color:var(--muted);font-family:var(--mono);font-size:12px}
-
   /* keep the dark design in the printed / PDF output (Chrome print-to-pdf honours exact) */
   html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @media print{
@@ -302,11 +291,6 @@ const CONFIG = {
     //   price:"186.96", rs:"+51", offHigh:"0%", buyPoint:"~178 pivot", stop:"~172",
     //   scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
     //   reason:"C: Q EPS +32% / sales +35% accelerating. A: 3-yr growth + high ROE. N: new AI-cluster product at a new high off a sound base. L: RS +51, #1 in a leading group. I: heavy institutional sponsorship.",
-    //   // spark = the base's closing prices (weekly ~30-52 pts, oldest->newest) for the inline
-    //   //   base sparkline; pivot = the buy-point price (draws a dashed line, colors the current
-    //   //   dot green when price >= pivot). Both optional - omit spark and the cell shows "-".
-    //   spark:[151,148,150,145,142,140,143,147,152,158,163,167,171,175,178,182,185,186.96],
-    //   pivot:178,
     //   reviewUrl:"reviews/ANET-review.html"
     // }
   ],
@@ -365,7 +349,6 @@ const COLS = [
   {key:"price",  label:"Price",        type:"num",  cls:"num",  get:p=>num(p.price)},
   {key:"rs",     label:"RS",           type:"num",  cls:"num",  get:p=>num(p.rs)},
   {key:"offHigh",label:"% off 52w hi", type:"num",  cls:"num",  get:p=>num(p.offHigh)},
-  {key:"base",   label:"Base",         type:"text", cls:"",     get:p=>"", noSort:true},
   {key:"score",  label:"C&middot;A&middot;N&middot;S&middot;L&middot;I", type:"num", cls:"", get:p=>passCount(p.scores)},
   {key:"buyPoint",label:"Buy point",   type:"text", cls:"num",  get:p=>(p.buyPoint||""), noSort:true},
   {key:"stop",   label:"Stop",         type:"text", cls:"num",  get:p=>(p.stop||""),      noSort:true},
@@ -378,30 +361,6 @@ $("head").innerHTML = COLS.map(c=>{
   return '<th class="'+c.cls+(sortable?' sortable':'')+'" data-key="'+c.key+'">'+c.label+
     (sortable?' <span class="arrow">&#9662;</span>':'')+'</th>';
 }).join('');
-
-// ---- per-row base sparkline (from p.spark = array of closes; optional p.pivot) ----
-function sparkSVG(p){
-  const raw = Array.isArray(p.spark) ? p.spark.map(Number).filter(v=>isFinite(v)) : [];
-  if (raw.length < 2) return '<span class="sparkempty" title="no base series provided">&ndash;</span>';
-  const W=96, H=30, pad=3;
-  const pv = isFinite(num(p.pivot)) ? num(p.pivot) : null;
-  let lo=Math.min(...raw), hi=Math.max(...raw);
-  if (pv!=null){ lo=Math.min(lo,pv); hi=Math.max(hi,pv); }
-  if (hi===lo){ hi+=1; lo-=1; }
-  const x=(i)=> pad + i*(W-2*pad)/(raw.length-1);
-  const y=(v)=> pad + (hi-v)*(H-2*pad)/(hi-lo);
-  const pts = raw.map((v,i)=> x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ');
-  const last=raw[raw.length-1];
-  const up = pv!=null ? last>=pv : last>=raw[0];
-  const pivotLine = pv!=null
-    ? '<line class="pivot" x1="'+pad+'" y1="'+y(pv).toFixed(1)+'" x2="'+(W-pad)+'" y2="'+y(pv).toFixed(1)+'"/>' : '';
-  return '<svg class="spark" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" '+
-    'role="img" aria-label="base shape">'+
-    pivotLine+
-    '<polyline class="base" points="'+pts+'"/>'+
-    '<circle class="now '+(up?'up':'down')+'" cx="'+x(raw.length-1).toFixed(1)+'" cy="'+y(last).toFixed(1)+'" r="2.6"/>'+
-    '</svg>';
-}
 
 function renderRows(list){
   $("rows").innerHTML = list.map(p=>{
@@ -419,7 +378,6 @@ function renderRows(list){
       '<td class="num">'+esc(p.price)+'</td>'+
       '<td class="num '+rsClass(p.rs)+'">'+esc(p.rs)+'</td>'+
       '<td class="num">'+esc(p.offHigh)+'</td>'+
-      '<td>'+sparkSVG(p)+'</td>'+
       '<td class="scorecells">'+sc+'</td>'+
       '<td class="num">'+esc(p.buyPoint)+'</td>'+
       '<td class="num">'+esc(p.stop)+'</td>'+
