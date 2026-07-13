@@ -267,58 +267,102 @@
 /* ============================ FILL THIS PER RUN ============================ */
 const CONFIG = {
   title: "CAN SLIM Stock Recommendations",
-  subtitle: "Screened with the CAN SLIM growth-investing methodology - IBKR data + fundamentals",
-  generatedAt: "2026-07-11 (market close)",
-  dataSource: "IBKR (delayed/live) + fundamental sources",
-  requested: 20,
+  subtitle: "Screened with the CAN SLIM growth-investing methodology - IBKR price/volume + FMP fundamentals + web",
+  generatedAt: "2026-07-13 (intraday)",
+  dataSource: "IBKR price/volume + FMP fundamentals + web research",
+  requested: 8,
 
-  // One line naming which data sources ACTUALLY contributed to this run (renders as a
-  // "Data sources used:" line under the market banner). Be specific about which letters came
-  // from where, e.g. "IBKR weekly bars (N/S/L/M + RS via relative_strength.py); C/A/I from
-  // SEC filings + web (FMP fundamentals gated on this plan)".
-  dataProvenance: "",
-  // Set a short warning whenever any source was STALE or GATED and the analysis leaned on a
-  // fallback (renders an amber caveat banner). Say what was gated/stale and what filled the
-  // gap, e.g. "FMP quote-change/statements gated & throttled; RS computed from IBKR bars and
-  // C/A taken from web research, which can lag the latest quarter." Leave "" if everything
-  // resolved from the preferred sources with fresh data.
-  dataWarning: "",
+  dataProvenance: "N/S/L/M and relative strength: IBKR weekly bars run through scripts/relative_strength.py (weekly-mode). C/A/I fundamentals: web research (Arista/CrowdStrike/Cloudflare/Lilly earnings releases + SEC 8-Ks); ROE for AMD/GE from FMP key-metrics. FMP batch-quote gave the first-pass % off high / 50-200-day trend.",
+  dataWarning: "FMP quote-change and statements endpoints were intermittently gated/throttled on this plan ('requires a higher plan'), so C/A came from web research (which can lag the latest reported quarter) rather than a structured fundamentals feed, and RS was computed from IBKR bars. Prices are 2026-07-13 intraday and approximate.",
 
   market: {
-    verdict: "Confirmed uptrend - narrow & selective",   // badge text
-    tone: "pressure",                                     // "up" | "pressure" | "down"
-    distributionDays: "SPY 5 / QQQ 7 over ~5 weeks",
-    implication: "Indices near highs above the 50-day, but leadership is narrow (M intact but late-stage). Buy only genuine leaders emerging from sound bases; normal 7-8% stops."
+    verdict: "Confirmed uptrend - under mild pressure",
+    tone: "pressure",
+    distributionDays: "A few over ~5 weeks (est.); broad sell-off on 2026-07-13",
+    implication: "SPY sits near record highs above rising 50- and 200-day averages, so M is intact. But a sharp broad down day on 2026-07-13 and a hot May CPI (4.2%) add pressure, and leadership has NARROWED - many 2025 leaders (PLTR, APP, CRWV, ALAB, SMR) are now deep in corrections. Still buy only genuine leaders emerging from sound bases; normal 7-8% stops."
   },
 
-  // Set when fewer than requested qualify (never pad).
-  shortfall: "Only the names below cleared the full filter; the rest of the market's leadership has broken down or is extended. Per the method, returning the qualifiers rather than padding to 20.",
+  shortfall: "Requested 8; 6 cleared the full CAN SLIM filter. The tape is narrow right now - most former leaders are 30-85% off their highs, and several names still near their highs (JPM, TT) are relative-strength LAGGARDS that fail the Leader test. Per the method, returning the 6 genuine qualifiers rather than padding to 8 with weaker names.",
 
-  // Tier-1 buy-range picks. scores = pass|partial|fail. reason = CAN SLIM terms ONLY.
-  // Optional reviewUrl = path/URL to this symbol's ibkr-review-ticker HTML (makes ticker clickable).
   picks: [
-    // {
-    //   rank:1, symbol:"ANET", company:"Arista Networks", group:"AI networking",
-    //   price:"186.96", rs:"+51", offHigh:"0%", buyPoint:"~178 pivot", stop:"~172",
-    //   scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
-    //   reason:"C: Q EPS +32% / sales +35% accelerating. A: 3-yr growth + high ROE. N: new AI-cluster product at a new high off a sound base. L: RS +51, #1 in a leading group. I: heavy institutional sponsorship.",
-    //   // spark = the base's closing prices (weekly ~30-52 pts, oldest->newest) for the inline
-    //   //   base sparkline; pivot = the buy-point price (draws a dashed line, colors the current
-    //   //   dot green when price >= pivot). Both optional - omit spark and the cell shows "-".
-    //   spark:[151,148,150,145,142,140,143,147,152,158,163,167,171,175,178,182,185,186.96],
-    //   pivot:178,
-    //   reviewUrl:"reviews/ANET-review.html"
-    // }
+    {
+      rank:1, symbol:"LLY", company:"Eli Lilly", group:"Pharma (GLP-1)",
+      price:"1189.03", rs:"+29", offHigh:"5%", buyPoint:"~1,250 pivot", stop:"~1,150",
+      scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"C: Q1'26 sales +56% and EPS +156% YoY - massive and accelerating. A: multi-year EPS growth with very high ROE. N: new-drug cycle (GLP-1 franchise + oral candidate) driving a new-high base, ~5% off the 52-wk high. L: RS +29 vs SPY, group leader. I: deep institutional sponsorship. S: buybacks but a heavy mega-cap float (partial).",
+      spark:[924.37,1025.28,1059.7,1075.47,1010.31,1027.51,1071.44,1077.75,1080.36,1063.56,1038.4,1064.29,1037.15,1058.18,1040,1009.52,1051.99,990.33,985.08,906.7,878.24,935.58,939.47,927.03,883.96,963.33,948.45,1004.92,1065,1105,1131.42,1133,1098.57,1208.12,1213.91,1188.58],
+      pivot:1250
+    },
+    {
+      rank:2, symbol:"ANET", company:"Arista Networks", group:"AI networking",
+      price:"183.40", rs:"+51", offHigh:"3%", buyPoint:"~190 pivot", stop:"~169",
+      scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"C: Q1'26 sales +35% / non-GAAP EPS +32% YoY, accelerating. A: 3-yr growth with high ROE. N: AI-cluster networking (800G / EtherLink) pressing to new highs off a tight base, ~3% off high. L: RS +51, #1 in a leading group. I: strong institutional sponsorship. S: buybacks, large float (partial).",
+      spark:[134.65,131.37,117.43,130.68,128.59,124.76,131.12,131.84,133.6,122.89,129.83,136.34,141.74,137.49,141.59,132.79,133.5,132.89,133.57,131.22,120.77,126.68,147.35,164.23,176.91,172.7,141.77,141.97,154.03,159.47,154.27,163.24,169.67,157.6,159.99,186.96,181.96],
+      pivot:190
+    },
+    {
+      rank:3, symbol:"AMD", company:"Advanced Micro Devices", group:"Semiconductors",
+      price:"539.05", rs:"+260", offHigh:"8%", buyPoint:"~585 pivot (on a pullback)", stop:"~496",
+      scores:{C:"pass",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"L: RS +260, by far the strongest in the screen. C: data-center/AI sales ~+36% YoY with sharp EPS acceleration. A: EPS rising fast but ROE only ~7% (Xilinx intangibles) - partial. N: MI-series AI accelerators + hyperscaler deals, new-high base, ~8% off after today's pullback. I: heavy institutional. S: large float (partial).",
+      spark:[203.78,217.53,217.97,210.78,213.43,214.99,223.47,203.17,231.83,259.68,236.73,208.44,207.32,200.15,200.21,192.43,193.39,201.33,201.99,217.5,245.04,278.39,347.81,360.54,455.19,424.1,467.51,516.1,466.38,511.57,537.37,521.58,517.82,557.89,535.89],
+      pivot:585
+    },
+    {
+      rank:4, symbol:"GE", company:"GE Aerospace", group:"Aerospace",
+      price:"352.19", rs:"+20", offHigh:"8%", buyPoint:"~383 pivot", stop:"~325",
+      scores:{C:"pass",A:"pass",N:"pass",S:"partial",L:"partial",I:"pass"},
+      reason:"A: ROE ~47% with a multi-year earnings turnaround - top-tier. C: aerospace sales/EPS growing double digits. N: post-spin pure-play aerospace with a record engine backlog, new-high base ~8% off. L: RS +20 vs SPY over 12 mo, though shorter-term leadership has cooled - partial. I: broad institutional. S: large float (partial).",
+      spark:[308.95,307.27,304.82,287.44,298.45,283.94,299.81,307.21,315.14,320.75,321.59,325.12,293.87,306.79,321,315.41,343.22,342.26,323.11,299.69,286.79,282.81,281.16,308.35,304.13,284.6,286.51,297.15,281.53,302.84,323.76,328,335.3,357.64,369,377.52,359.27,352.28],
+      pivot:383
+    },
+    {
+      rank:5, symbol:"NET", company:"Cloudflare", group:"Internet software / edge",
+      price:"271.32", rs:"+27", offHigh:"3%", buyPoint:"~280 pivot", stop:"~258",
+      scores:{C:"pass",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"C: Q1'26 revenue +34% YoY. N: AI/edge platform (Workers AI) pushing to new highs, ~3% off and right at the pivot. L: RS +27 vs SPY. I: rising institutional sponsorship. A: thin GAAP profitability and a 20% restructuring keep ROE low - partial. S: large float (partial).",
+      spark:[253.3,232.81,210.6,186.38,200.21,200.95,202.44,195.68,202.39,196.02,182.78,184.17,173.44,177.35,173.21,195.85,177.14,172.19,195.19,212.45,215.42,203.02,211.69,166.99,200.99,207.07,217.5,196.13,197.56,216.17,241.82,250.11,228.48,224.06,237.24,242.41,268.4,271],
+      pivot:280
+    },
+    {
+      rank:6, symbol:"CRWD", company:"CrowdStrike", group:"Cybersecurity",
+      price:"187.65", rs:"+35", offHigh:"10%", buyPoint:"~210 pivot", stop:"~173",
+      scores:{C:"partial",A:"partial",N:"pass",S:"partial",L:"pass",I:"pass"},
+      reason:"L: RS +35 vs SPY, cybersecurity leader. N: Falcon platform / AI-SOC story, new-high base ~10% off after the pullback. C: revenue ~+21-24% YoY and ARR +24% - solid but just under the 25% bar (partial). A: profitability still normalizing, modest ROE (partial). I: strong institutional. S: large float (partial).",
+      spark:[131.83,135.75,134.95,134.39,122.67,127.29,128.01,126.2,120.32,120.3,113.4,117.65,113.47,113.12,110.35,98.88,107.41,97.15,92.99,107.25,110.45,102.25,92.4,99.78,94.76,105.99,112.03,113.91,131.94,148.52,165.87,182.75,167.76,170.7,171.22,175.27,193.98,187.18,187.89],
+      pivot:210
+    }
   ],
 
-  rationale: [ /* { symbol, company, text } */ ],
-  watch: [ /* { symbol, company, group, offHigh, note } */ ],
-  speculative: [ /* { symbol, company, reason } */ ],
-  excluded: [ /* { group, names, reason } */ ],
+  rationale: [],
+  watch: [
+    { symbol:"JPM", company:"JPMorgan Chase", group:"Financials", offHigh:"1% off high",
+      note:"Sitting near a new high but 12-mo RS is NEGATIVE vs SPY (~-4) - a laggard making highs, which fails the Leader (L) test. Needs relative strength to turn up before it is a CAN SLIM buy." },
+    { symbol:"TT", company:"Trane Technologies", group:"Industrials (HVAC)", offHigh:"2% off high",
+      note:"At the top of a long ~12-week base but 12-mo RS lags SPY (~-11). Constructive chart, but leadership (L) must improve to qualify." },
+    { symbol:"NVDA", company:"NVIDIA", group:"Semiconductors", offHigh:"13% off high",
+      note:"Still strong on C/A, but ~13% below its high and slipping under the 50-day after today's drop - repairing a base, not yet a new-high buy (fails N for now)." }
+  ],
+  speculative: [],
+  excluded: [
+    { group:"Prior AI / momentum leaders", names:"PLTR, APP, CRWV, ALAB",
+      reason:"30-45% off their highs and below key averages - violate N (buy new highs off a sound base, not falling knives) and L." },
+    { group:"Nuclear / power (ex-leaders)", names:"SMR, CEG, VST, UEC",
+      reason:"SMR ~85% off its high (at 52-wk lows); CEG/VST/UEC 25-40%+ off highs. Leadership rolled over - none at new-high pivots." },
+    { group:"Precious-metals miners", names:"AEM, WPM, KGC, NEM",
+      reason:"Gold pulled back; miners 25-45% off highs - not at new-high pivots, so they fail N." }
+  ],
 
-  portfolioNote: "The method favors concentration (4-6 names), so treat this as a research shortlist to narrow, not a buy-all list. Cut every loss at 7-8% (no exceptions), average up never down, take many 20-25% gains but let a powerful leader run if it jumps 20%+ in 1-3 weeks. Re-check M - if distribution days keep building, raise cash.",
-  disclaimer: "Informational decision support, not investment advice; not a financial advisor. Figures are as-of the timestamp; RS is a relative-strength proxy (12-mo vs SPY), not a full-market 1-99 rating; fundamentals may lag. Nothing here is an order; no orders were or will be placed.",
-  sources: [ /* { label, url } */ ]
+  portfolioNote: "The method favors concentration (4-6 names), so treat this as a research shortlist to narrow, not a buy-all list. Cut every loss at 7-8% (no exceptions), average up never down, take many 20-25% gains but let a powerful leader run if it jumps 20%+ in 1-3 weeks. Re-check M - with a broad down day just printed, size in gradually and raise cash if distribution days keep building.",
+  disclaimer: "Informational decision support, not investment advice; not a financial advisor. Figures are as-of 2026-07-13 intraday and approximate; RS is a relative-strength proxy (12-mo vs SPY computed from IBKR weekly bars), not a full-market 1-99 rating; some fundamentals are from web research and may lag. Nothing here is an order; no orders were or will be placed.",
+  sources: [
+    { label:"Arista Q1'26 earnings (SEC 8-K)", url:"https://www.sec.gov/Archives/edgar/data/0001596532/000159653226000074/ex991q126-earningsrelease.htm" },
+    { label:"CrowdStrike Q1 FY26 (SEC 8-K)", url:"https://www.sec.gov/Archives/edgar/data/0001535527/000153552726000022/crwd-20260603xex991.htm" },
+    { label:"Cloudflare Q1'26 results", url:"https://www.stocktitan.net/sec-filings/NET/8-k-cloudflare-inc-reports-material-event-070b89301d60.html" },
+    { label:"Eli Lilly Q1'26 results", url:"https://investor.lilly.com/news-releases/news-release-details/lilly-reports-first-quarter-2026-financial-results-raises-full" },
+    { label:"Market outlook (Forbes, 2H 2026)", url:"https://www.forbes.com/sites/investor-hub/article/what-to-expect-for-the-stock-markets-last-6-months-of-2026/" }
+  ]
 };
 /* ========================================================================== */
 

@@ -97,9 +97,16 @@ volume deterministically. Then gather fundamentals
 (C, A, N, I) for the names that survive the technical cut — don't waste research on names
 already failing on price action / RS. **Prefer real financial-data connectors over generic
 web search** for the fundamental letters, following the source-priority ladder in
-`ibkr-data-guide.md` Step 3 (Daloopa → bigdata.com → LSEG → FMP → SEC EDGAR via
-`securities-filings-lookup` → web). When a candidate needs a deeper individual dive, delegate
-to a specialized skill — see "Delegating for deeper financials" below.
+`ibkr-data-guide.md` Step 3 (Daloopa → bigdata.com → LSEG → SEC EDGAR via
+`securities-filings-lookup` → FMP → web; **FMP is the lowest-priority connector** because it is
+commonly gated/throttled on lower-tier plans). **If a source is gated, throttled, unauthorized,
+or empty, fall through to the next rung for that same data point rather than dropping the
+letter** —
+gating is per-endpoint and often intermittent, so keep whatever a source does answer and fill
+only the gaps from lower rungs, walking the ladder down to web before ever marking a field
+`n/a` (see "Handling gated / throttled / unavailable sources" in that step). Note the source of
+each figure. When a candidate needs a deeper individual dive, delegate to a specialized skill —
+see "Delegating for deeper financials" below.
 
 ### 5 — Score, filter, diversify
 Apply `ibkr-data-guide.md` Step 4: hard-disqualify the failures (cheap/illiquid, near
@@ -135,7 +142,12 @@ straight in a browser, rendered from `assets/dashboard_template.html`:
    `shortfall` (fewer than requested),
    `watch[]` (leaders repairing bases — not yet buyable), `speculative[]` (strong charts that
    fail the earnings test), `excluded[]` (groups with no leaders at highs), `rationale[]`
-   (optional longer per-name cards), `portfolioNote`, `disclaimer`, `sources[]`.
+   (optional longer per-name cards), `portfolioNote`, `disclaimer`, `sources[]`, and the
+   provenance fields **`dataProvenance`** (one line naming which data sources actually
+   contributed — e.g. which letters came from IBKR bars vs. filings vs. web) and
+   **`dataWarning`** (a short amber caveat set **whenever any source was gated, throttled, or
+   stale and the analysis leaned on a fallback** — say what was gated/stale and what filled the
+   gap; leave `""` only if everything resolved from the preferred sources with fresh data).
 3. **Present the HTML file** (SendUserFile / present_files, or give the path) — it is fully
    self-contained (all CONFIG inline, no external assets) so it opens directly in any browser
    with the sortable table, clickable-ticker review windows, and hover states all live. Keep
@@ -183,7 +195,10 @@ asks for the optional PDF (step 4). The default deliverable is the interactive H
 (sortable columns, clickable-ticker review modal), opened straight in the browser.
 
 The dashboard must always include: header (timestamp + data source), the **market-direction
-verdict**, the ranked table (basic info + C·A·N·S·L·I scorecard + CAN-SLIM reason), the
+verdict**, a **"data sources used" provenance line** (`dataProvenance`) naming which sources
+fed the analysis **plus a stale/gated warning** (`dataWarning`) whenever any source was gated,
+throttled, or lagging and a fallback was used, the ranked table (basic info + C·A·N·S·L·I
+scorecard + CAN-SLIM reason), the
 shortfall note when fewer than requested qualify, the **portfolio / loss-cutting note**
 (concentration 4–6; cut losses 7–8%; average up never down; take 20–25% gains but hold the
 powerful leaders), and the **disclaimer** (informational only, not advice, as-of timestamp,

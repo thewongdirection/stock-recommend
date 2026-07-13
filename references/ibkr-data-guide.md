@@ -11,7 +11,8 @@ earnings, institutional ownership). So:
 - **Fundamental-data connectors** (preferred) or web research cover the fundamental letters:
   **C** (quarterly EPS & sales), **A** (annual EPS, ROE, margins), and the ownership half of
   **I**. Prefer connected financial sources over generic web search — see Step 3 for the
-  source-priority ladder (Daloopa → bigdata.com → LSEG → FMP → SEC EDGAR → web) and when to delegate
+  source-priority ladder (Daloopa → bigdata.com → LSEG → SEC EDGAR → FMP → web; FMP is the
+  lowest-priority connector because it is commonly gated/throttled) and when to delegate
   to the `ibkr-review-ticker` / `securities-filings-lookup` skills.
 
 Load IBKR tools with `ToolSearch` (query e.g. `"search contracts price history price
@@ -135,11 +136,19 @@ research only for finalists that already survived the technical cut.
 3. **LSEG** (`lseg:*`, e.g. `lseg:equity-research`) — analyst **consensus estimates** and
    fundamentals: next-year EPS estimate (part of **A**), plus estimate revisions and surprise
    history (the acceleration signal in **C**).
-4. **Financial Modeling Prep (FMP)** — a structured fundamentals MCP (deferred; load its tools
-   with `ToolSearch`). Broad, fast coverage of the exact CAN SLIM inputs, **but endpoint
-   availability depends on the user's FMP plan** — some calls return `ACCESS DENIED ... requires
-   a higher plan`. Probe cheaply and drop to the next rung for whatever's gated. What tends to
-   work on lower tiers, and how to use it:
+4. **SEC EDGAR / official filings** — the authoritative primary statements (10-K / 10-Q /
+   20-F / annual reports). Reach them via the **`securities-filings-lookup`** skill, which
+   resolves the ticker's exchange/regulator and pulls the official filing (also covers non-US
+   listings: HKEX, CNINFO, TWSE, LSE, EDINET, Frankfurt). Use for ground-truth income
+   statement / balance sheet / cash flow, and for **I** (13F institutional ownership, Form 4
+   management ownership).
+5. **Financial Modeling Prep (FMP)** — a structured fundamentals MCP (deferred; load its tools
+   with `ToolSearch`). **Deliberately the lowest-priority connector:** on lower-tier plans it is
+   heavily gated *and* throttled — bursts of calls return `ACCESS DENIED ... requires a higher
+   plan` even for endpoints that worked moments earlier — so it is unreliable as a primary
+   fundamentals source. Prefer the higher rungs above; reach for FMP mainly as a **cheap breadth
+   cross-check** or when the higher rungs are not connected. Probe cheaply and drop to web (rung
+   6) for whatever's gated. What tends to work on lower tiers, and how to use it:
    - **`quote` → `batch-quote`** (the workhorse): one call takes a symbol array and returns, per
      name, `price`, `yearHigh`/`yearLow`, `priceAvg50`/`priceAvg200`, `volume`, `marketCap`.
      That single call gives you **% off 52-wk high** and **50/200-day trend** for a whole
@@ -154,21 +163,39 @@ research only for finalists that already survived the technical cut.
    - **Premium / commonly gated:** `statements` (income / growth / ratios), `analyst`
      (estimates, grades, targets), `form13F` + `insiderTrades`, `earningsTranscript`,
      `discountedCashFlow`. When these are gated, the **C**/**A** earnings figures and **I**
-     ownership come from web research (rung 6) or `securities-filings-lookup` (rung 5) instead.
+     ownership come from the official filings (rung 4) or web research (rung 6) instead.
    IBKR tickers vs FMP symbols line up for US names; IBKR name-search is unreliable, so resolve
    IBKR `contract_id`s by **ticker**, not company name.
-5. **SEC EDGAR / official filings** — the authoritative primary statements (10-K / 10-Q /
-   20-F / annual reports). Reach them via the **`securities-filings-lookup`** skill, which
-   resolves the ticker's exchange/regulator and pulls the official filing (also covers non-US
-   listings: HKEX, CNINFO, TWSE, LSE, EDINET, Frankfurt). Use for ground-truth income
-   statement / balance sheet / cash flow, and for **I** (13F institutional ownership, Form 4
-   management ownership).
-6. **General web search** — only when none of the above are connected.
+6. **General web search** — the universal fallback when the connected sources above cannot
+   answer (gated, throttled, or not connected).
 
-These connectors (bigdata.com, Daloopa, LSEG, FMP) require the user to have **authorized** /
-keyed them; if a call returns unauthorized/unavailable, drop to the next source down the
-ladder. Always note which source a figure came from, and timestamp it. Obey copyright
-(paraphrase; short quotes only).
+**Handling gated / throttled / unavailable sources — fall through the ladder, never abandon a
+letter.** These connectors (Daloopa, bigdata.com, LSEG, FMP) only work if the user has
+authorized/keyed them, and access is frequently **partial** (some endpoints only) or
+**intermittent** (throttling). Treat **any** of the following as "this source cannot answer
+*this* call right now" and immediately try the **next source down the ladder** for that same
+data point — do not stop at the first gate:
+- **explicit gating** — `ACCESS DENIED ... requires a higher plan`, `unauthorized`, `not
+  entitled`, or any upgrade prompt;
+- **throttling / rate-limiting** — the *same* call fails right after succeeding, or a burst of
+  parallel calls mostly fails. On FMP this often surfaces as the *same* "requires a higher
+  plan" message, so treat a wave of denials as possible throttling: space the calls out and
+  retry once before concluding the endpoint is truly gated;
+- **empty / `null` / timeout / obviously stale** responses.
+
+Rules for falling through:
+1. **Gating is per-endpoint and per-source, not all-or-nothing.** One FMP endpoint being gated
+   (e.g. `statements`, `analyst`) does not mean `quote`/`profile` are — keep using whatever a
+   source *does* answer and fill only the gaps from lower rungs. Probe the cheap endpoints first.
+2. **Fall through for every letter independently.** If Daloopa/bigdata are absent and FMP
+   `statements` is gated, get **C**/**A** from SEC EDGAR (via `securities-filings-lookup`) or web
+   rather than skipping them. If FMP `quote-change`/`batch-quote` is gated, get RS and % off high
+   from IBKR bars via `scripts/relative_strength.py` (the default technical path anyway).
+3. **Never block the run or leave a letter blank because the top source is gated.** Walk the
+   ladder all the way down to general web search; only if *every* rung fails do you mark the
+   field `n/a` and lower confidence for that name.
+4. **Always record which source each figure came from and timestamp it** (sources differ in lag
+   and revision). Obey copyright (paraphrase; short quotes only).
 
 **Deep single-ticker dive.** When a candidate is borderline, a sell-off needs explaining, or
 the user asks to look closer at one name, delegate to the **`ibkr-review-ticker`** skill — it
