@@ -195,8 +195,10 @@ throttled, or lagging and a fallback was used, the ranked table (basic info + C�
 scorecard + CAN-SLIM reason), the
 shortfall note when fewer than requested qualify, the **portfolio / loss-cutting note**
 (concentration 4–6; cut losses 7–8%; average up never down; take 20–25% gains but hold the
-powerful leaders), and the **disclaimer** (informational only, not advice, as-of timestamp,
-nothing is an order). **Never** write account-bound data into the file — it may be shared.
+powerful leaders), the **disclaimer** (informational only, not advice, as-of timestamp,
+nothing is an order), and an auto-rendered **acronym glossary** at the end (the standard CAN
+SLIM + finance acronyms; extend with run-specific terms via `CONFIG.glossary` = `[{term, def}]`).
+**Never** write account-bound data into the file — it may be shared.
 
 **Why the scorecard is C·A·N·S·L·I and not C·A·N·S·L·I·M:** M (market direction) is a single
 market-wide gate that is identical for every stock at a given moment, so it belongs in the

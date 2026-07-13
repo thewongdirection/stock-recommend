@@ -40,6 +40,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CAN SLIM Stock Recommendations</title>
 <style>
+  /* enhanced-larger-fonts */
   /* Dark is the committed design of this dashboard (incl. the default PDF). A light palette
      remains available via <html data-theme="light"> for anyone who wants it. */
   :root{
@@ -63,72 +64,78 @@
   .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 60px}
   header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px;
     border-bottom:2px solid var(--line);padding-bottom:16px}
-  h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
-  .sub{color:var(--muted);font-size:13px}
-  .meta{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:16px}
+  .meta{font-family:var(--mono);font-size:14px;color:var(--muted);text-align:right}
 
   .market{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:18px 0 6px;
     background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
-  .verdict{font-weight:700;font-size:14px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+  .verdict{font-weight:700;font-size:17px;padding:6px 12px;border-radius:999px;white-space:nowrap}
   .verdict.up{background:var(--pass-bg);color:var(--pass)}
   .verdict.pressure{background:var(--partial-bg);color:var(--partial)}
   .verdict.down{background:var(--fail-bg);color:var(--fail)}
-  .market .imp{font-size:13.5px;color:var(--ink);flex:1;min-width:240px}
-  .dd{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .market .imp{font-size:16px;color:var(--ink);flex:1;min-width:240px}
+  .dd{font-family:var(--mono);font-size:14px;color:var(--muted)}
 
-  .section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  .section-title{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
     color:var(--muted);margin:26px 0 10px}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 10px;align-items:center}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:2px 0 10px;align-items:center}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
   .dot.pass{background:var(--pass)} .dot.partial{background:var(--partial)} .dot.fail{background:var(--fail)}
-  .hint{font-size:11.5px;color:var(--muted);font-style:italic}
+  .hint{font-size:14px;color:var(--muted);font-style:italic}
 
   .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-  table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px}
-  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  table{border-collapse:collapse;width:100%;min-width:900px;font-size:16px}
+  thead th{text-align:left;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
     padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel);position:sticky;top:0}
   thead th.sortable{cursor:pointer;user-select:none}
   thead th.sortable:hover{color:var(--ink)}
-  th .arrow{opacity:.35;font-size:10px;margin-left:3px}
+  th .arrow{opacity:.35;font-size:12px;margin-left:3px}
   th.sorted .arrow{opacity:1;color:var(--accent)}
   th.num{text-align:right}
   tbody td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
   tbody tr:last-child td{border-bottom:none}
   .rk{font-family:var(--mono);color:var(--muted)}
-  .sym{font-family:var(--mono);font-weight:700;font-size:14px}
+  .sym{font-family:var(--mono);font-weight:700;font-size:17px}
   a.sym{color:var(--accent);text-decoration:none;cursor:pointer;border-bottom:1px dotted var(--accent)}
   a.sym:hover{border-bottom-style:solid}
-  .co{color:var(--muted);font-size:12px}
-  .grp{font-size:12px}
+  .co{color:var(--muted);font-size:14px}
+  .grp{font-size:14px}
   td.num{font-family:var(--mono);white-space:nowrap;text-align:right}
   .pos{color:var(--pass)} .neg{color:var(--fail)}
   .scorecells{white-space:nowrap}
   .sc{display:inline-flex;flex-direction:column;align-items:center;width:22px;margin-right:3px}
-  .sc .lab{font-size:9px;color:var(--muted);font-family:var(--mono)}
+  .sc .lab{font-size:11px;color:var(--muted);font-family:var(--mono)}
   .sc .mk{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;
-    font-size:12px;font-weight:700;margin-top:2px}
+    font-size:14px;font-weight:700;margin-top:2px}
   .mk.pass{background:var(--pass-bg);color:var(--pass)}
   .mk.partial{background:var(--partial-bg);color:var(--partial)}
   .mk.fail{background:var(--fail-bg);color:var(--fail)}
-  .reason{font-size:12.5px;color:var(--ink);min-width:260px;max-width:420px}
+  .reason{font-size:15px;color:var(--ink);min-width:260px;max-width:420px}
 
   .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px}
-  .card h3{margin:0 0 2px;font-size:15px;font-family:var(--mono)}
+  .card h3{margin:0 0 2px;font-size:18px;font-family:var(--mono)}
   .card .co{margin-bottom:8px}
-  .card p{margin:0;font-size:13px}
+  .card p{margin:0;font-size:16px}
 
   .tier{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:10px}
   .tier b{font-family:var(--mono)}
-  .tier .why{color:var(--muted);font-size:12.5px}
+  .tier .why{color:var(--muted);font-size:15px}
 
   .callout{background:var(--accent-soft);border:1px solid var(--line);border-left:3px solid var(--accent);
-    border-radius:8px;padding:12px 15px;font-size:13px;margin:14px 0}
+    border-radius:8px;padding:12px 15px;font-size:16px;margin:14px 0}
   .callout.warn{background:var(--partial-bg);border-left-color:var(--partial)}
-  .provenance{font-family:var(--mono);font-size:12px;color:var(--muted);margin:10px 0 2px}
+  .provenance{font-family:var(--mono);font-size:14px;color:var(--muted);margin:10px 0 2px}
   .provenance b{color:var(--ink)}
-  footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px}
+
+  /* glossary of acronyms (auto-rendered at the end) */
+  .glossary{display:grid;grid-template-columns:max-content 1fr;gap:7px 18px;font-size:16px;margin-top:4px}
+  .glossary .gterm{font-family:var(--mono);font-weight:700;color:var(--ink);white-space:nowrap}
+  .glossary .gdef{color:var(--muted)}
+  @media (max-width:560px){.glossary{grid-template-columns:1fr;gap:2px 0}.glossary .gterm{margin-top:8px}}
+  footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
   footer a{color:var(--accent)}
   .sources a{margin-right:12px;white-space:nowrap}
 
@@ -141,7 +148,7 @@
   .modal-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;
     border-bottom:1px solid var(--line)}
   .modal-bar .t{font-family:var(--mono);font-weight:700}
-  .modal-bar .acts a,.modal-bar .acts button{font-size:12px;margin-left:12px;color:var(--accent);
+  .modal-bar .acts a,.modal-bar .acts button{font-size:14px;margin-left:12px;color:var(--accent);
     background:none;border:none;cursor:pointer;text-decoration:none}
   .modal iframe{border:0;width:100%;height:100%;background:#fff}
 
@@ -152,12 +159,12 @@
   .lm-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 4;opacity:.6}
   .lm-ref{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 4;opacity:.7}
   .lm-zone{fill:var(--accent-soft);opacity:.55}
-  .lm-zone-lab{fill:var(--accent);font-size:10px;font-family:var(--mono);opacity:.85}
-  .lm-axlab{fill:var(--muted);font-size:11px;font-family:var(--sans)}
-  .lm-tick{fill:var(--muted);font-size:9.5px;font-family:var(--mono)}
+  .lm-zone-lab{fill:var(--accent);font-size:12px;font-family:var(--mono);opacity:.85}
+  .lm-axlab{fill:var(--muted);font-size:13px;font-family:var(--sans)}
+  .lm-tick{fill:var(--muted);font-size:11px;font-family:var(--mono)}
   .lm-dot{fill:var(--accent);stroke:var(--panel);stroke-width:1.5}
   .lm-dot.lead{fill:var(--pass)}
-  .lm-lab{fill:var(--ink);font-size:10px;font-family:var(--mono);font-weight:700}
+  .lm-lab{fill:var(--ink);font-size:12px;font-family:var(--mono);font-weight:700}
 
   /* keep the dark design in the printed / PDF output (Chrome print-to-pdf honours exact) */
   html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -231,6 +238,10 @@
 
   <div class="callout" id="portfolio"></div>
 
+  <div class="section-title">Glossary <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">- acronyms used in this dashboard</span></div>
+  <div class="glossary" id="glossary"></div>
+
+
   <footer>
     <div id="disclaimer"></div>
     <div class="sources" id="sources" style="margin-top:8px"></div>
@@ -299,6 +310,11 @@ const CONFIG = {
   watch: [ /* { symbol, company, group, offHigh, note } */ ],
   speculative: [ /* { symbol, company, reason } */ ],
   excluded: [ /* { group, names, reason } */ ],
+
+  // A glossary of the standard CAN SLIM + finance acronyms auto-renders at the end of the page
+  // (see DEFAULT_GLOSSARY in the script). Add run-specific terms here to EXTEND it - each entry
+  // is { term, def }; anything whose term matches a default is ignored. Leave [] to use defaults.
+  glossary: [ /* { term:"XYZ", def:"..." } */ ],
 
   portfolioNote: "The method favors concentration (4-6 names), so treat this as a research shortlist to narrow, not a buy-all list. Cut every loss at 7-8% (no exceptions), average up never down, take many 20-25% gains but let a powerful leader run if it jumps 20%+ in 1-3 weeks. Re-check M - if distribution days keep building, raise cash.",
   disclaimer: "Informational decision support, not investment advice; not a financial advisor. Figures are as-of the timestamp; RS is a relative-strength proxy (12-mo vs SPY), not a full-market 1-99 rating; fundamentals may lag. Nothing here is an order; no orders were or will be placed.",
@@ -500,6 +516,40 @@ if ((CONFIG.excluded||[]).length){
     '<div class="tier"><b>'+esc(x.group)+'</b> <span class="why">- '+esc(x.names||'')+'</span><div class="why">'+esc(x.reason||'')+'</div></div>').join('');
 }
 $("portfolio").innerHTML = '<b>Portfolio &amp; risk (per the method):</b> '+esc(CONFIG.portfolioNote||'');
+
+// ---- glossary of acronyms (default set; extend via CONFIG.glossary = [{term,def}, ...]) ----
+const DEFAULT_GLOSSARY = [
+  {term:"CAN SLIM", def:"Growth-stock selection framework - the seven traits (below) shared by big market winners just before their major advances."},
+  {term:"C", def:"Current quarterly earnings & sales - up sharply vs the year-ago quarter and accelerating."},
+  {term:"A", def:"Annual earnings - multi-year EPS growth with a high return on equity."},
+  {term:"N", def:"New - a new product / management / industry condition AND a breakout to new highs from a sound base."},
+  {term:"S", def:"Supply & demand - a volume surge on the breakout, a manageable float, buybacks."},
+  {term:"L", def:"Leader, not laggard - high relative strength; the #1 or #2 name in a strong group."},
+  {term:"I", def:"Institutional sponsorship - increasing ownership by high-quality funds."},
+  {term:"M", def:"Market direction - the general market must be in a confirmed uptrend (shown in the banner at the top)."},
+  {term:"RS", def:"Relative strength - price performance vs the S&P 500. Shown here as a proxy, not a full-market 1-99 rating."},
+  {term:"EPS", def:"Earnings per share."},
+  {term:"YoY", def:"Year over year - vs the same period one year earlier."},
+  {term:"ROE", def:"Return on equity - profit as a percentage of shareholders' equity."},
+  {term:"FCF", def:"Free cash flow - operating cash flow minus capital expenditures."},
+  {term:"ARR", def:"Annual recurring revenue - the annualized run-rate of subscription revenue."},
+  {term:"EBITDA", def:"Earnings before interest, taxes, depreciation & amortization."},
+  {term:"GAAP / non-GAAP", def:"Standardized accounting results vs company-adjusted (non-standard) results."},
+  {term:"MA (50-/200-day)", def:"Moving average of price - the 50- and 200-day trend lines."},
+  {term:"bps", def:"Basis points - 1 bp = 0.01% (100 bps = 1%)."},
+  {term:"AI", def:"Artificial intelligence."},
+  {term:"ETF", def:"Exchange-traded fund (e.g. SPY = S&P 500, QQQ = Nasdaq-100)."},
+  {term:"IB", def:"Investment banking."},
+  {term:"GLP-1", def:"A class of weight-loss / diabetes drugs (e.g. Eli Lilly, Novo Nordisk)."},
+  {term:"NGS", def:"Next-generation security - a recurring-revenue security metric (e.g. Palo Alto Networks)."}
+];
+(function(){
+  const el = document.getElementById("glossary"); if(!el) return;
+  const extra = Array.isArray(CONFIG.glossary) ? CONFIG.glossary : [];
+  const seen = new Set(DEFAULT_GLOSSARY.map(g=>String(g.term).toLowerCase()));
+  const all = DEFAULT_GLOSSARY.concat(extra.filter(g=>g&&g.term&&!seen.has(String(g.term).toLowerCase())));
+  el.innerHTML = all.map(g=>'<div class="gterm">'+esc(g.term)+'</div><div class="gdef">'+esc(g.def)+'</div>').join('');
+})();
 $("disclaimer").textContent = CONFIG.disclaimer||'';
 if ((CONFIG.sources||[]).length){
   $("sources").innerHTML = "Sources: " + CONFIG.sources.map(s=>'<a href="'+esc(s.url)+'">'+esc(s.label)+'</a>').join('');
