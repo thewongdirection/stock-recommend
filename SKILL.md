@@ -98,8 +98,13 @@ volume deterministically. Then gather fundamentals
 already failing on price action / RS. **Prefer real financial-data connectors over generic
 web search** for the fundamental letters, following the source-priority ladder in
 `ibkr-data-guide.md` Step 3 (Daloopa → bigdata.com → LSEG → FMP → SEC EDGAR via
-`securities-filings-lookup` → web). When a candidate needs a deeper individual dive, delegate
-to a specialized skill — see "Delegating for deeper financials" below.
+`securities-filings-lookup` → web). **If a source is gated, throttled, unauthorized, or empty,
+fall through to the next rung for that same data point rather than dropping the letter** —
+gating is per-endpoint and often intermittent, so keep whatever a source does answer and fill
+only the gaps from lower rungs, walking the ladder down to web before ever marking a field
+`n/a` (see "Handling gated / throttled / unavailable sources" in that step). Note the source of
+each figure. When a candidate needs a deeper individual dive, delegate to a specialized skill —
+see "Delegating for deeper financials" below.
 
 ### 5 — Score, filter, diversify
 Apply `ibkr-data-guide.md` Step 4: hard-disqualify the failures (cheap/illiquid, near

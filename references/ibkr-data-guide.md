@@ -165,10 +165,33 @@ research only for finalists that already survived the technical cut.
    management ownership).
 6. **General web search** — only when none of the above are connected.
 
-These connectors (bigdata.com, Daloopa, LSEG, FMP) require the user to have **authorized** /
-keyed them; if a call returns unauthorized/unavailable, drop to the next source down the
-ladder. Always note which source a figure came from, and timestamp it. Obey copyright
-(paraphrase; short quotes only).
+**Handling gated / throttled / unavailable sources — fall through the ladder, never abandon a
+letter.** These connectors (Daloopa, bigdata.com, LSEG, FMP) only work if the user has
+authorized/keyed them, and access is frequently **partial** (some endpoints only) or
+**intermittent** (throttling). Treat **any** of the following as "this source cannot answer
+*this* call right now" and immediately try the **next source down the ladder** for that same
+data point — do not stop at the first gate:
+- **explicit gating** — `ACCESS DENIED ... requires a higher plan`, `unauthorized`, `not
+  entitled`, or any upgrade prompt;
+- **throttling / rate-limiting** — the *same* call fails right after succeeding, or a burst of
+  parallel calls mostly fails. On FMP this often surfaces as the *same* "requires a higher
+  plan" message, so treat a wave of denials as possible throttling: space the calls out and
+  retry once before concluding the endpoint is truly gated;
+- **empty / `null` / timeout / obviously stale** responses.
+
+Rules for falling through:
+1. **Gating is per-endpoint and per-source, not all-or-nothing.** One FMP endpoint being gated
+   (e.g. `statements`, `analyst`) does not mean `quote`/`profile` are — keep using whatever a
+   source *does* answer and fill only the gaps from lower rungs. Probe the cheap endpoints first.
+2. **Fall through for every letter independently.** If Daloopa/bigdata are absent and FMP
+   `statements` is gated, get **C**/**A** from SEC EDGAR (via `securities-filings-lookup`) or web
+   rather than skipping them. If FMP `quote-change`/`batch-quote` is gated, get RS and % off high
+   from IBKR bars via `scripts/relative_strength.py` (the default technical path anyway).
+3. **Never block the run or leave a letter blank because the top source is gated.** Walk the
+   ladder all the way down to general web search; only if *every* rung fails do you mark the
+   field `n/a` and lower confidence for that name.
+4. **Always record which source each figure came from and timestamp it** (sources differ in lag
+   and revision). Obey copyright (paraphrase; short quotes only).
 
 **Deep single-ticker dive.** When a candidate is borderline, a sell-off needs explaining, or
 the user asks to look closer at one name, delegate to the **`ibkr-review-ticker`** skill — it
