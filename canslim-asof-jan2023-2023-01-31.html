@@ -1,0 +1,607 @@
+<!--
+  can-slim-recommend - CAN SLIM dashboard template.
+
+  HOW TO USE (per run):
+    1. Copy this file to the output location, e.g. canslim-recommendations.html
+    2. Fill the CONFIG object below with the screen's results. That is the ONLY thing you
+       edit - the page renders itself from CONFIG. Do not hand-edit the DOM.
+    3. Open / present the file. For PDF, print-to-PDF (the print CSS is A4/Letter-friendly).
+
+  RULES THE TEMPLATE ENFORCES BY CONVENTION:
+    - Every pick MUST carry a `reason` expressed ONLY in CAN SLIM terms (the seven letters,
+      bases/pivots, relative strength, new highs, volume/accumulation, leadership,
+      institutional sponsorship, market direction). No generic market chatter, no non-method
+      rationale. If a name can't be justified in CAN SLIM terms, it does not belong here.
+    - `scores` grades each of C,A,N,S,L,I as an INTEGER 0-10 (be granular: e.g. C:7, A:5).
+    - M (market direction) is graded ONCE for the whole market via CONFIG.market.mScore (0-10)
+      and applied to every row (same value), so the per-row scorecard shows C,A,N,S,L,I + an
+      M cell (dashed = market-wide). Total = C+A+N+S+L+I + M, out of 70.
+    - Never put account-bound data (IDs, balances, positions) anywhere in CONFIG.
+
+  ENCODING: keep CONFIG text ASCII where practical (use "-" not an em-dash, "vs" not a
+    special glyph). The page is UTF-8, but ASCII content is bulletproof across viewers/PDF.
+
+  VISUALS (auto-rendered from CONFIG, no extra work):
+    - Leadership map: a top-of-page scatter of RS (x) vs % off 52-wk high (y, 0 at top) built
+      from each pick's `rs` and `offHigh` - leaders cluster top-right in the shaded "buyable"
+      zone. Shows only when >=2 picks have numeric rs+offHigh; otherwise it hides itself.
+
+  PER-TICKER DEEP DIVE: give a pick a `reviewUrl` (path/URL to the HTML produced by the
+    `ibkr-review-ticker` skill for that symbol, saved next to this file). The ticker then
+    becomes a link that opens that report in an in-page window (modal iframe). Omit it and
+    the ticker is plain text. For the iframe to load a local file, serve the dashboard and
+    the review files from the same folder (same origin) or open via a local server.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CAN SLIM Stock Recommendations</title>
+<style>
+  /* enhanced-larger-fonts */
+  /* Dark is the committed design of this dashboard (incl. the default PDF). A light palette
+     remains available via <html data-theme="light"> for anyone who wants it. */
+  :root{
+    --bg:#0d1017; --panel:#161b23; --ink:#e8ebf1; --muted:#9aa4b2; --line:#273040;
+    --accent:#6ea0ff; --accent-soft:#182236;
+    --pass:#3ddc91; --pass-bg:#0f2f22; --partial:#e6b04a; --partial-bg:#332711;
+    --fail:#ff6d64; --fail-bg:#3a1613; --chip:#1e2632;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  }
+  :root[data-theme="dark"]{--bg:#0d1017;--panel:#161b23;--ink:#e8ebf1;--muted:#9aa4b2;--line:#273040;
+      --accent:#6ea0ff;--accent-soft:#182236;--pass:#3ddc91;--pass-bg:#0f2f22;--partial:#e6b04a;
+      --partial-bg:#332711;--fail:#ff6d64;--fail-bg:#3a1613;--chip:#1e2632;}
+  :root[data-theme="light"]{--bg:#f7f8fa;--panel:#ffffff;--ink:#1a1d24;--muted:#5b6472;--line:#e4e7ec;
+      --accent:#1c64f2;--accent-soft:#e8f0fe;--pass:#0f9d58;--pass-bg:#e6f4ea;--partial:#c77700;
+      --partial-bg:#fdf1dd;--fail:#c5221f;--fail-bg:#fce8e6;--chip:#eef1f5;}
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 60px}
+  header.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px;
+    border-bottom:2px solid var(--line);padding-bottom:16px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:16px}
+  .meta{font-family:var(--mono);font-size:14px;color:var(--muted);text-align:right}
+
+  .market{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:18px 0 6px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .verdict{font-weight:700;font-size:17px;padding:6px 12px;border-radius:999px;white-space:nowrap}
+  .verdict.up{background:var(--pass-bg);color:var(--pass)}
+  .verdict.pressure{background:var(--partial-bg);color:var(--partial)}
+  .verdict.down{background:var(--fail-bg);color:var(--fail)}
+  .market .imp{font-size:16px;color:var(--ink);flex:1;min-width:240px}
+  .dd{font-family:var(--mono);font-size:14px;color:var(--muted)}
+
+  .section-title{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--muted);margin:26px 0 10px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:2px 0 10px;align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .dot.pass{background:var(--pass)} .dot.partial{background:var(--partial)} .dot.fail{background:var(--fail)}
+  .hint{font-size:14px;color:var(--muted);font-style:italic}
+
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;min-width:900px;font-size:16px}
+  thead th{text-align:left;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel);position:sticky;top:0}
+  thead th.sortable{cursor:pointer;user-select:none}
+  thead th.sortable:hover{color:var(--ink)}
+  th .arrow{opacity:.35;font-size:12px;margin-left:3px}
+  th.sorted .arrow{opacity:1;color:var(--accent)}
+  th.num{text-align:right}
+  tbody td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  .rk{font-family:var(--mono);color:var(--muted)}
+  .sym{font-family:var(--mono);font-weight:700;font-size:17px}
+  a.sym{color:var(--accent);text-decoration:none;cursor:pointer;border-bottom:1px dotted var(--accent)}
+  a.sym:hover{border-bottom-style:solid}
+  .co{color:var(--muted);font-size:14px}
+  .grp{font-size:14px}
+  td.num{font-family:var(--mono);white-space:nowrap;text-align:right}
+  .pos{color:var(--pass)} .neg{color:var(--fail)}
+  .scorecells{white-space:nowrap}
+  .sc{display:inline-flex;flex-direction:column;align-items:center;width:22px;margin-right:2px}
+  .sc .lab{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .sc .mk{width:21px;height:21px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;margin-top:2px;font-family:var(--mono)}
+  .mk.s-hi{background:var(--pass-bg);color:var(--pass)}
+  .mk.s-mid{background:var(--partial-bg);color:var(--partial)}
+  .mk.s-lo{background:var(--fail-bg);color:var(--fail)}
+  .sc.mcol .mk{outline:1px dashed var(--line);outline-offset:-1px}   /* M = market-wide component */
+  .sc-total{display:inline-flex;flex-direction:column;align-items:center;margin-left:7px;vertical-align:top}
+  .sc-total .lab{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .sc-total .val{font-family:var(--mono);font-weight:700;font-size:15px;margin-top:1px;color:var(--ink)}
+  .reason{font-size:15px;color:var(--ink);min-width:260px;max-width:420px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 15px}
+  .card h3{margin:0 0 2px;font-size:18px;font-family:var(--mono)}
+  .card .co{margin-bottom:8px}
+  .card p{margin:0;font-size:16px}
+
+  .tier{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:10px}
+  .tier b{font-family:var(--mono)}
+  .tier .why{color:var(--muted);font-size:15px}
+
+  .callout{background:var(--accent-soft);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:8px;padding:12px 15px;font-size:16px;margin:14px 0}
+  .callout.warn{background:var(--partial-bg);border-left-color:var(--partial)}
+  .provenance{font-family:var(--mono);font-size:14px;color:var(--muted);margin:10px 0 2px}
+  .provenance b{color:var(--ink)}
+  /* historical / point-in-time badge */
+  .asof-badge{display:inline-flex;align-items:center;gap:8px;margin:14px 0 0;padding:8px 14px;
+    border-radius:10px;background:var(--partial-bg);color:var(--partial);border:1px solid var(--line);
+    font-weight:700;font-size:14px}
+  .asof-badge .sub2{font-weight:400;color:var(--muted)}
+
+  /* glossary of acronyms (auto-rendered at the end) */
+  .glossary{display:grid;grid-template-columns:max-content 1fr;gap:7px 18px;font-size:16px;margin-top:4px}
+  .glossary .gterm{font-family:var(--mono);font-weight:700;color:var(--ink);white-space:nowrap}
+  .glossary .gdef{color:var(--muted)}
+  @media (max-width:560px){.glossary{grid-template-columns:1fr;gap:2px 0}.glossary .gterm{margin-top:8px}}
+  footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+  footer a{color:var(--accent)}
+  .sources a{margin-right:12px;white-space:nowrap}
+
+  /* modal window for the per-ticker ibkr-review-ticker report */
+  .modal{position:fixed;inset:0;background:rgba(10,14,20,.6);display:none;z-index:50;
+    align-items:center;justify-content:center;padding:24px}
+  .modal.open{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(1200px,96vw);
+    height:min(88vh,900px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .modal-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;
+    border-bottom:1px solid var(--line)}
+  .modal-bar .t{font-family:var(--mono);font-weight:700}
+  .modal-bar .acts a,.modal-bar .acts button{font-size:14px;margin-left:12px;color:var(--accent);
+    background:none;border:none;cursor:pointer;text-decoration:none}
+  .modal iframe{border:0;width:100%;height:100%;background:#fff}
+
+  /* leadership map (RS vs % off 52-wk high scatter) */
+  .leadmap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 8px}
+  .leadmap svg{display:block;width:100%;height:auto}
+  .lm-axis{stroke:var(--line);stroke-width:1}
+  .lm-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 4;opacity:.6}
+  .lm-ref{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 4;opacity:.7}
+  .lm-zone{fill:var(--accent-soft);opacity:.55}
+  .lm-zone-lab{fill:var(--accent);font-size:12px;font-family:var(--mono);opacity:.85}
+  .lm-axlab{fill:var(--muted);font-size:13px;font-family:var(--sans)}
+  .lm-tick{fill:var(--muted);font-size:11px;font-family:var(--mono)}
+  .lm-dot{fill:var(--accent);stroke:var(--panel);stroke-width:1.5}
+  .lm-dot.lead{fill:var(--pass)}
+  .lm-lab{fill:var(--ink);font-size:12px;font-family:var(--mono);font-weight:700}
+
+  /* keep the dark design in the printed / PDF output (Chrome print-to-pdf honours exact) */
+  html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media print{
+    html,body{background:var(--bg)}
+    .wrap{max-width:none;padding:14mm}
+    .tablewrap,.card,.tier,.market,.leadmap{break-inside:avoid}
+    thead th{position:static}
+    .hint,th .arrow{display:none}
+    a{color:var(--accent);text-decoration:none}
+    .modal{display:none !important}
+    @page{margin:0}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="title">CAN SLIM Stock Recommendations</h1>
+      <div class="sub" id="subtitle">Screened with the CAN SLIM growth-investing methodology</div>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div id="asof"></div>
+  <div class="market" id="market"></div>
+  <div id="dataWarning"></div>
+  <div id="dataProvenance"></div>
+  <div id="shortfall"></div>
+
+  <div id="leadmapWrap" style="display:none">
+    <div class="section-title">Leadership map <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">- relative strength vs. distance below 52-wk high; leaders cluster top-right</span></div>
+    <div class="leadmap" id="leadmap"></div>
+  </div>
+
+  <div class="section-title">Recommended stocks <span id="countnote" style="font-weight:400;text-transform:none;letter-spacing:0"></span></div>
+  <div class="legend">
+    <span><span class="dot pass"></span>8-10 strong</span>
+    <span><span class="dot partial"></span>4-7 partial</span>
+    <span><span class="dot fail"></span>0-3 weak</span>
+    <span style="color:var(--muted)">Each letter graded <b>0-10</b>; Total = C&middot;A&middot;N&middot;S&middot;L&middot;I + <b>M</b> (market, same for every row) out of <b>70</b>. RS = relative strength vs. SPY.</span>
+  </div>
+  <div class="legend"><span class="hint">Click a column header to sort. Click a ticker to open its ibkr-review-ticker report.</span></div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div id="rationaleWrap" style="display:none">
+    <div class="section-title">Per-name detail</div>
+    <div class="cards" id="cards"></div>
+  </div>
+
+  <div id="watchWrap" style="display:none">
+    <div class="section-title">Watch &mdash; leaders repairing bases (not yet buyable)</div>
+    <div id="watch"></div>
+  </div>
+
+  <div id="specWrap" style="display:none">
+    <div class="section-title">Strong charts that fail the earnings test &mdash; avoid (per method)</div>
+    <div id="spec"></div>
+  </div>
+
+  <div id="exclWrap" style="display:none">
+    <div class="section-title">Groups excluded (no leaders at highs)</div>
+    <div id="excl"></div>
+  </div>
+
+  <div class="callout" id="portfolio"></div>
+
+  <div class="section-title">Glossary <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">- acronyms used in this dashboard</span></div>
+  <div class="glossary" id="glossary"></div>
+
+
+  <footer>
+    <div id="disclaimer"></div>
+    <div class="sources" id="sources" style="margin-top:8px"></div>
+    <div style="margin-top:8px">Methodology: CAN SLIM (C &mdash; current quarterly earnings &amp; sales &middot; A &mdash; annual earnings &amp; ROE &middot; N &mdash; new products/management/highs off a base &middot; S &mdash; supply/demand &amp; volume &middot; L &mdash; leader not laggard / relative strength &middot; I &mdash; institutional sponsorship &middot; M &mdash; market direction). Reasons are expressed only in these terms.</div>
+  </footer>
+</div>
+
+<!-- per-ticker report window -->
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-bar">
+      <span class="t" id="modalTitle"></span>
+      <span class="acts">
+        <a id="modalOpen" target="_blank" rel="noopener">Open in new tab</a>
+        <button id="modalClose" type="button">Close &times;</button>
+      </span>
+    </div>
+    <iframe id="modalFrame" title="ibkr-review-ticker report"></iframe>
+  </div>
+</div>
+
+<script>
+/* ============================ FILL THIS PER RUN ============================ */
+const CONFIG = {
+  title: "CAN SLIM Stock Recommendations",
+  subtitle: "Point-in-time reconstruction - CAN SLIM screen run against market conditions as they stood at end of January 2023",
+  generatedAt: "2023-01-31 (week close reconstruction)",
+  dataSource: "IBKR historical bars (5-yr weekly/daily, truncated to <= 2023-01-31) + fundamentals from filings reported on/before that date",
+  requested: 8,
+  // Historical / point-in-time mode: set to a past date (e.g. "2023-01-31") to mark the whole
+  // page as an as-of reconstruction (renders an "AS OF ..." badge). Leave "" for a live run.
+  // In as-of mode, also set generatedAt to the date and spell out the biases in dataWarning.
+  asOf: "2023-01-31",
+
+  dataProvenance: "IBKR 5-year weekly & daily bars truncated to <= 2023-01-31 (N/S/L/M technicals + 12-mo RS vs SPY via relative_strength.py --asof 2023-01-31); C/A/I from company results REPORTED on or before 2023-01-31 (i.e. Q3-CY2022 and earlier - no look-ahead). Live snapshot/quote tools not used (they only return present-day prices).",
+  dataWarning: "HISTORICAL RECONSTRUCTION, not a survivorship-free backtest. (1) Look-ahead control: fundamentals use only quarters reported by 2023-01-31, but the candidate UNIVERSE was hand-picked with present-day knowledge of which names mattered in early 2023 - a real 2023 screen would have surfaced a different, larger list and some 2023 leaders that later blew up. (2) Prices/returns are derived from historical bars (the live snapshot tool is present-day only), so intraday precision and exact pivots are approximate. (3) No transaction costs, gaps, or halts modeled. Treat as an illustration of how the method reads a past tape, not a tradeable track record.",
+
+  market: {
+    verdict: "Early confirmed uptrend - fragile, coming out of the 2022 bear",
+    tone: "pressure",                                     // "up" | "pressure" | "down"
+    mScore: 6,                                            // M graded 0-10 (feeds every row's /70 total): confirmed uptrend ~8-10, under pressure ~5-7, correction ~0-4
+    distributionDays: "SPY still ~8% below its early-2022 high but +9-10% off the Oct-2022 low; a follow-through day printed the week of Jan 6, 2023",
+    implication: "As of end-Jan-2023 the S&P had rallied off the October low, reclaimed its 200-day, and logged a follow-through - a fresh but unproven uptrend after a 12-month bear (SPY 12-mo return still ~ -8%). Attempt buys only in genuine leaders breaking from sound bases; keep positions small and stops tight (7-8%) until the rally proves itself. Note: within weeks growth/AI names would run hard - but that was NOT yet confirmed on this date."
+  },
+
+  // Set when fewer than requested qualify (never pad).
+  shortfall: "Coming out of a bear market, few names were both fundamentally strong AND technically near new highs. The list below are the ones that cleared both on 2023-01-31; the rest of the 2022 leadership (mega-cap tech, high-multiple software) was still deeply below its highs and did not qualify - which is exactly what the method would tell you at a market turn.",
+
+  picks: [
+    {
+      rank:1, symbol:"FSLR", company:"First Solar", group:"Solar / clean energy",
+      price:"~150 (Jan-31-2023 close, bar-derived)", rs:"+122", offHigh:"~8%", buyPoint:"~161 base high", stop:"~139",
+      scores:{C:7,A:6,N:9,S:8,L:10,I:8},
+      reason:"L: RS +122 vs SPY - the single strongest name in this set, at #1. N: within ~8% of a 52-week high while the broad market sat well below its highs; multi-month base built through H2-2022. S: Inflation Reduction Act (Aug-2022) transformed the demand/subsidy backdrop for U.S. solar manufacturing - a powerful 'new'. C/A: return to profitability guided on IRA tax credits; earnings quality still lumpy (story ahead of the numbers), so C/A graded moderate, not top."
+    },
+    {
+      rank:2, symbol:"ELF", company:"e.l.f. Beauty", group:"Consumer / cosmetics",
+      price:"~62 (Jan-31-2023 close, bar-derived)", rs:"+107", offHigh:"~2%", buyPoint:"~62 new-high breakout", stop:"~57",
+      scores:{C:9,A:9,N:10,S:8,L:9,I:8},
+      reason:"C: accelerating quarterly EPS & sales growth reported into late 2022 (double-digit, beating and raising). A: multi-year 20%+ growth with expanding margins. N: literally at new 52-week highs (~2% off) in a down tape - textbook N. L: RS +107, near the top of the whole set. S: share-count discipline; I: growing institutional ownership. The cleanest all-around CAN SLIM profile here."
+    },
+    {
+      rank:3, symbol:"LLY", company:"Eli Lilly", group:"Pharma / diabetes-obesity",
+      price:"~343 (Jan-31-2023 close, bar-derived)", rs:"+53", offHigh:"~6%", buyPoint:"~360 base pivot", stop:"~318",
+      scores:{C:7,A:8,N:8,S:7,L:8,I:9},
+      reason:"L: RS +53 - large-cap leadership, rare in this tape. N: ~6% off a 52-week high, holding a base above rising MAs. S: Mounjaro (tirzepatide) approved mid-2022 with an enormous diabetes/obesity TAM - a genuine new driver. I: deep, high-quality institutional sponsorship. C/A solid double-digit growth though not explosive, so graded strong-not-spectacular."
+    },
+    {
+      rank:4, symbol:"XOM", company:"Exxon Mobil", group:"Energy / integrated oil",
+      price:"~113 (Jan-31-2023 close, bar-derived)", rs:"+46", offHigh:"~3%", buyPoint:"~114 near high", stop:"~105",
+      scores:{C:9,A:6,N:9,S:7,L:8,I:7},
+      reason:"C: blowout 2022 quarterly earnings on high oil & gas prices - record profits reported into Q3/Q4-2022. N: ~3% off a 52-week (and all-time) high while most sectors were far below - N confirmed. L: RS +46, energy was THE leadership group of 2022. A: cyclical, so long-run growth quality graded lower (commodity earnings are not durable). Classic 'buy strength where the market is actually leading' name for this date."
+    },
+    {
+      rank:5, symbol:"CAT", company:"Caterpillar", group:"Industrials / machinery",
+      price:"~250 (Jan-31-2023 close, bar-derived)", rs:"+33", offHigh:"~6%", buyPoint:"~266 base high", stop:"~231",
+      scores:{C:8,A:6,N:8,S:7,L:7,I:8},
+      reason:"L: RS +33, participating in the late-2022 industrials/value rotation. N: ~6% off a 52-week high, basing above its 200-day. C: strong pricing-led quarterly earnings reported into late 2022; infrastructure/backlog tailwind (S). A/cyclicality caps the durability grade. I: broad institutional ownership. A steadier, lower-octane leader than the top names."
+    }
+  ],
+
+  rationale: [
+    { symbol:"FSLR/ELF", company:"", text:"The two standout leaders on this date. Both were within a few percent of NEW HIGHS while the S&P was ~8% below its high and the Nasdaq far worse - the essence of relative strength at a market bottom. ELF paired that with clean, accelerating fundamentals; FSLR was more of an IRA-policy story, so it scores lower on C/A despite the strongest RS." },
+    { symbol:"Energy/Industrials", company:"", text:"XOM and CAT represent where leadership ACTUALLY was in late 2022 - energy and industrials - not the 2020-21 tech winners. The method follows the tape, not last cycle's darlings, which is why these cyclicals rank above the mega-cap growth names investors were anchored to." }
+  ],
+
+  watch: [
+    { symbol:"LNG", company:"Cheniere Energy", group:"Energy / LNG export", offHigh:"~16%", note:"RS +38 and superb 2022 LNG-export earnings, but ~16% off its high and still repairing a base - constructive, not yet in a buy range on this date. Watch for a proper base breakout." },
+    { symbol:"NVDA", company:"NVIDIA", group:"Semiconductors / AI", offHigh:"~24%", note:"Today's poster child, but on 2023-01-31 it was ~24% off its high with RS ~ -5 (LAGGING SPY) and YoY earnings DOWN in its late-2022 quarters. The AI revaluation had NOT happened yet - a real screen this date would rank it a watch, not a buy. A vivid reminder that as-of discipline ignores what we now know came next." },
+    { symbol:"META", company:"Meta Platforms", group:"Internet / social", offHigh:"~36%", note:"RS ~ -28, ~36% off its high, earnings still falling after the 2022 collapse. The Feb-2023 'Year of Efficiency' rip was one day in the future and not knowable here - correctly excluded from buys on 2023-01-31." }
+  ],
+  speculative: [ /* { symbol, company, reason } */ ],
+  excluded: [
+    { group:"2020-21 mega-cap growth / software", names:"NVDA, META, most high-multiple SaaS", reason:"Still 25-60% below their highs with negative or falling RS on 2023-01-31. However well they later performed, they were technically broken on THIS date and the method would not buy them - the discipline that keeps you out of falling knives." }
+  ],
+
+  // A glossary of the standard CAN SLIM + finance acronyms auto-renders at the end of the page
+  // (see DEFAULT_GLOSSARY in the script). Add run-specific terms here to EXTEND it - each entry
+  // is { term, def }; anything whose term matches a default is ignored. Leave [] to use defaults.
+  glossary: [ /* { term:"XYZ", def:"..." } */ ],
+
+  portfolioNote: "The method favors concentration (4-6 names), so treat this as a research shortlist to narrow, not a buy-all list. Cut every loss at 7-8% (no exceptions), average up never down, take many 20-25% gains but let a powerful leader run if it jumps 20%+ in 1-3 weeks. Re-check M - if distribution days keep building, raise cash.",
+  disclaimer: "Informational decision support, not investment advice; not a financial advisor. Figures are as-of the timestamp; RS is a relative-strength proxy (12-mo vs SPY), not a full-market 1-99 rating; fundamentals may lag. Nothing here is an order; no orders were or will be placed.",
+  sources: [ /* { label, url } */ ]
+};
+/* ========================================================================== */
+
+const $ = (id)=>document.getElementById(id);
+const esc = (s)=> (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rsClass = (v)=> /^[-\u2212]/.test(String(v).trim()) ? "neg" : "pos";
+// parse a messy numeric string ("+51","-14%","1,188",">1,220 breakout","~178 pivot") -> number|NaN
+const num = (s)=>{ if(s==null) return NaN; const m=String(s).replace(/,/g,'').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):NaN; };
+// --- 0-10 per-letter grading; total = C+A+N+S+L+I + M (market, same for all rows) out of 70 ---
+const LETTERS6 = ["C","A","N","S","L","I"];
+const clamp10 = (v)=>{ v=Number(v); return isFinite(v)?Math.max(0,Math.min(10,Math.round(v))):0; };
+const gradeCls = (v)=> v>=8?"s-hi":v>=4?"s-mid":"s-lo";
+const mScore = ()=> clamp10((CONFIG.market||{}).mScore);
+const scoreTotal = (p)=> LETTERS6.reduce((n,k)=> n+clamp10((p.scores||{})[k]), 0) + mScore();
+
+document.title = CONFIG.title || "CAN SLIM Recommendations";
+$("title").textContent = CONFIG.title || document.title;
+if (CONFIG.subtitle) $("subtitle").textContent = CONFIG.subtitle;
+$("meta").innerHTML = "As of " + esc(CONFIG.generatedAt||"") + "<br>" + esc(CONFIG.dataSource||"");
+if (CONFIG.asOf){
+  $("asof").innerHTML = '<div class="asof-badge">&#9203; AS OF ' + esc(CONFIG.asOf) +
+    ' <span class="sub2">- historical reconstruction (point-in-time), not a survivorship-free backtest</span></div>';
+}
+
+const m = CONFIG.market||{};
+$("market").innerHTML =
+  '<span class="verdict '+esc(m.tone||'up')+'">'+esc(m.verdict||'')+'</span>'+
+  '<div class="imp"><b>M &mdash; market direction:</b> '+esc(m.implication||'')+'</div>'+
+  (m.distributionDays?'<div class="dd">Distribution days: '+esc(m.distributionDays)+'</div>':'');
+
+// data provenance (which sources actually contributed) + a warning when any is stale/gated.
+// Falls back to dataSource so the "data sources used" line is never silently absent.
+const prov = CONFIG.dataProvenance || CONFIG.dataSource;
+if (prov){
+  $("dataProvenance").innerHTML = '<div class="provenance"><b>Data sources used:</b> '+esc(prov)+'</div>';
+}
+if (CONFIG.dataWarning){
+  $("dataWarning").innerHTML = '<div class="callout warn">&#9888; <b>Data caveat:</b> '+esc(CONFIG.dataWarning)+'</div>';
+}
+
+const picks = (CONFIG.picks||[]).slice();
+$("countnote").textContent = CONFIG.requested ? "- "+picks.length+" of "+CONFIG.requested+" requested qualified" : "- "+picks.length;
+if (CONFIG.shortfall && picks.length < (CONFIG.requested||Infinity)){
+  $("shortfall").innerHTML = '<div class="callout">'+esc(CONFIG.shortfall)+'</div>';
+}
+
+// ---- sortable header ----
+const COLS = [
+  {key:"rank",   label:"#",            type:"num",  cls:"",     get:p=>num(p.rank)},
+  {key:"symbol", label:"Stock",        type:"text", cls:"",     get:p=>(p.symbol||"")},
+  {key:"group",  label:"Group",        type:"text", cls:"",     get:p=>(p.group||"")},
+  {key:"price",  label:"Price",        type:"num",  cls:"num",  get:p=>num(p.price)},
+  {key:"rs",     label:"RS",           type:"num",  cls:"num",  get:p=>num(p.rs)},
+  {key:"offHigh",label:"% off 52w hi", type:"num",  cls:"num",  get:p=>num(p.offHigh)},
+  {key:"score",  label:"C&middot;A&middot;N&middot;S&middot;L&middot;I&middot;M (/70)", type:"num", cls:"", get:p=>scoreTotal(p)},
+  {key:"buyPoint",label:"Buy point",   type:"text", cls:"num",  get:p=>(p.buyPoint||""), noSort:true},
+  {key:"stop",   label:"Stop",         type:"text", cls:"num",  get:p=>(p.stop||""),      noSort:true},
+  {key:"reason", label:"Why (CAN SLIM read)", type:"text", cls:"", get:p=>(p.reason||""), noSort:true},
+];
+let sortState = {key:null, dir:1};
+
+$("head").innerHTML = COLS.map(c=>{
+  const sortable = !c.noSort;
+  return '<th class="'+c.cls+(sortable?' sortable':'')+'" data-key="'+c.key+'">'+c.label+
+    (sortable?' <span class="arrow">&#9662;</span>':'')+'</th>';
+}).join('');
+
+function renderRows(list){
+  $("rows").innerHTML = list.map(p=>{
+    const tk = p.reviewUrl
+      ? '<a class="sym" data-review="'+esc(p.reviewUrl)+'" data-sym="'+esc(p.symbol)+'">'+esc(p.symbol)+'</a>'
+      : '<span class="sym">'+esc(p.symbol)+'</span>';
+    const ms = mScore();
+    const sc = LETTERS6.map(k=>{ const v=clamp10((p.scores||{})[k]);
+      return '<span class="sc"><span class="lab">'+k+'</span><span class="mk '+gradeCls(v)+'">'+v+'</span></span>';
+    }).join('')
+      + '<span class="sc mcol" title="M = market direction (same for every row)"><span class="lab">M</span><span class="mk '+gradeCls(ms)+'">'+ms+'</span></span>'
+      + '<span class="sc-total"><span class="lab">/70</span><span class="val">'+scoreTotal(p)+'</span></span>';
+    return '<tr>'+
+      '<td class="rk">'+esc(p.rank)+'</td>'+
+      '<td>'+tk+'<div class="co">'+esc(p.company)+'</div></td>'+
+      '<td class="grp">'+esc(p.group)+'</td>'+
+      '<td class="num">'+esc(p.price)+'</td>'+
+      '<td class="num '+rsClass(p.rs)+'">'+esc(p.rs)+'</td>'+
+      '<td class="num">'+esc(p.offHigh)+'</td>'+
+      '<td class="scorecells">'+sc+'</td>'+
+      '<td class="num">'+esc(p.buyPoint)+'</td>'+
+      '<td class="num">'+esc(p.stop)+'</td>'+
+      '<td class="reason">'+esc(p.reason)+'</td>'+
+    '</tr>';
+  }).join('') || '<tr><td colspan="'+COLS.length+'" style="padding:18px;color:var(--muted)">No names cleared the full CAN SLIM filter in the current market. See notes above.</td></tr>';
+}
+function applySort(key){
+  const col = COLS.find(c=>c.key===key); if(!col||col.noSort) return;
+  sortState.dir = (sortState.key===key) ? -sortState.dir : 1;
+  sortState.key = key;
+  const dir = sortState.dir;
+  const sorted = picks.slice().sort((a,b)=>{
+    let va=col.get(a), vb=col.get(b);
+    if(col.type==="num"){ const na=isNaN(va), nb=isNaN(vb); if(na&&nb)return 0; if(na)return 1; if(nb)return -1; return (va-vb)*dir; }
+    return String(va).localeCompare(String(vb),undefined,{sensitivity:'base'})*dir;
+  });
+  renderRows(sorted);
+  document.querySelectorAll('th').forEach(th=>{
+    th.classList.toggle('sorted', th.dataset.key===key);
+    const ar=th.querySelector('.arrow'); if(ar) ar.innerHTML = th.dataset.key===key ? (dir>0?'&#9652;':'&#9662;') : '&#9662;';
+  });
+}
+$("head").addEventListener('click', e=>{ const th=e.target.closest('th'); if(th&&th.dataset.key) applySort(th.dataset.key); });
+renderRows(picks);
+
+// ---- leadership map: RS (x) vs % off 52-wk high (y, 0 at top) ----
+function buildLeadMap(){
+  const pts = picks.map(p=>({sym:p.symbol, x:num(p.rs), y:num(p.offHigh),
+                             lead:scoreTotal(p)>=50}))
+                   .filter(d=> isFinite(d.x) && isFinite(d.y));
+  if (pts.length < 2) return;   // nothing meaningful to plot
+  $("leadmapWrap").style.display='block';
+
+  const W=720, H=320, mL=46, mR=18, mT=18, mB=42;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  // signed-sqrt x-scale so one extreme-RS outlier doesn't compress the rest of the field
+  const tx=(v)=> Math.sign(v)*Math.sqrt(Math.abs(v));
+  let xsR=pts.map(d=>d.x), ys=pts.map(d=>d.y);
+  let xMinR=Math.min(...xsR,0), xMaxR=Math.max(...xsR,0);
+  let yMin=0, yMax=Math.max(...ys, 8);
+  const xPadR=(xMaxR-xMinR||1)*0.08, ypad=(yMax-yMin||1)*0.08;
+  xMinR-=xPadR; xMaxR+=xPadR; yMax+=ypad;              // yMin stays 0 (at the high)
+  const txMin=tx(xMinR), txMax=tx(xMaxR);
+  const X=(v)=> mL + (tx(v)-txMin)/((txMax-txMin)||1)*pw;
+  const Y=(v)=> mT + (v-yMin)/((yMax-yMin)||1)*ph;      // 0% -> top
+
+  const buyBand=8;                                     // within 8% of high = buyable zone
+  const yBuy=Y(Math.min(buyBand,yMax)), xZero=X(Math.max(0,xMinR));
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="RS vs percent off 52-week high scatter">';
+  // buyable-leaders zone: RS>=0 and within buy band of the high (top-right)
+  if (xMaxR>0){
+    svg+='<rect class="lm-zone" x="'+xZero.toFixed(1)+'" y="'+mT+'" '+
+         'width="'+(mL+pw-xZero).toFixed(1)+'" height="'+(yBuy-mT).toFixed(1)+'"/>'+
+         '<text class="lm-zone-lab" x="'+(mL+pw-4)+'" y="'+(mT+13)+'" text-anchor="end">buyable leaders</text>';
+  }
+  // axes
+  svg+='<line class="lm-axis" x1="'+mL+'" y1="'+(mT+ph)+'" x2="'+(mL+pw)+'" y2="'+(mT+ph)+'"/>'+
+       '<line class="lm-axis" x1="'+mL+'" y1="'+mT+'" x2="'+mL+'" y2="'+(mT+ph)+'"/>';
+  // reference lines: RS=0 (vs SPY) and the buy band
+  if (xMinR<0 && xMaxR>0) svg+='<line class="lm-ref" x1="'+X(0).toFixed(1)+'" y1="'+mT+'" x2="'+X(0).toFixed(1)+'" y2="'+(mT+ph)+'"/>';
+  if (buyBand<yMax) svg+='<line class="lm-ref" x1="'+mL+'" y1="'+yBuy.toFixed(1)+'" x2="'+(mL+pw)+'" y2="'+yBuy.toFixed(1)+'"/>';
+  // axis labels
+  svg+='<text class="lm-axlab" x="'+(mL+pw/2)+'" y="'+(H-8)+'" text-anchor="middle">Relative strength (12-mo vs SPY, proxy; sqrt scale) &#8594; stronger</text>'+
+       '<text class="lm-axlab" transform="translate(13,'+(mT+ph/2)+') rotate(-90)" text-anchor="middle">&#8592; nearer 52-wk high (% below)</text>';
+  // y ticks (0 at top, yMax at bottom)
+  [0, buyBand, Math.round(yMax)].forEach(t=>{ if(t<=yMax){
+    svg+='<text class="lm-tick" x="'+(mL-6)+'" y="'+(Y(t)+3).toFixed(1)+'" text-anchor="end">'+t+'%</text>';
+  }});
+  // x ticks: evenly spaced in transformed space, labeled with the actual (nonlinear) RS value
+  for(let i=0;i<=4;i++){ const txv=txMin+i/4*(txMax-txMin), raw=Math.sign(txv)*txv*txv, px=mL+i/4*pw;
+    svg+='<text class="lm-tick" x="'+px.toFixed(1)+'" y="'+(mT+ph+15)+'" text-anchor="middle">'+(raw>0?'+':'')+Math.round(raw)+'</text>';
+  }
+  // dots + labels (flip the label to the left of dots near the right edge so it isn't clipped)
+  pts.forEach(d=>{
+    const cx=X(d.x), cy=Y(d.y);
+    const flip = cx > mL+pw-46;
+    const lx = (flip ? cx-7 : cx+7).toFixed(1);
+    svg+='<circle class="lm-dot'+(d.lead?' lead':'')+'" cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="4.5"/>'+
+         '<text class="lm-lab" text-anchor="'+(flip?'end':'start')+'" x="'+lx+'" y="'+(cy+3.5).toFixed(1)+'">'+esc(d.sym)+'</text>';
+  });
+  svg+='</svg>';
+  $("leadmap").innerHTML=svg;
+}
+buildLeadMap();
+
+// ---- per-ticker report modal ----
+function openReview(url, sym){
+  $("modalTitle").textContent = (sym?sym+" - ":"") + "ibkr-review-ticker report";
+  $("modalOpen").href = url;
+  $("modalFrame").src = url;
+  $("modal").classList.add('open');
+}
+function closeReview(){ $("modal").classList.remove('open'); $("modalFrame").src="about:blank"; }
+$("rows").addEventListener('click', e=>{
+  const a=e.target.closest('a[data-review]'); if(!a) return;
+  e.preventDefault(); openReview(a.dataset.review, a.dataset.sym);
+});
+$("modalClose").addEventListener('click', closeReview);
+$("modal").addEventListener('click', e=>{ if(e.target.id==='modal') closeReview(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeReview(); });
+
+// ---- optional sections ----
+if ((CONFIG.rationale||[]).length){
+  $("rationaleWrap").style.display='block';
+  $("cards").innerHTML = CONFIG.rationale.map(r=>
+    '<div class="card"><h3>'+esc(r.symbol)+'</h3><div class="co">'+esc(r.company||'')+'</div><p>'+esc(r.text)+'</p></div>').join('');
+}
+if ((CONFIG.watch||[]).length){
+  $("watchWrap").style.display='block';
+  $("watch").innerHTML = CONFIG.watch.map(w=>
+    '<div class="tier"><b>'+esc(w.symbol)+'</b> '+esc(w.company||'')+' &middot; '+esc(w.group||'')+' &middot; <span class="num neg">'+esc(w.offHigh||'')+'</span><div class="why">'+esc(w.note||'')+'</div></div>').join('');
+}
+if ((CONFIG.speculative||[]).length){
+  $("specWrap").style.display='block';
+  $("spec").innerHTML = CONFIG.speculative.map(s=>
+    '<div class="tier"><b>'+esc(s.symbol)+'</b> '+esc(s.company||'')+'<div class="why">'+esc(s.reason||'')+'</div></div>').join('');
+}
+if ((CONFIG.excluded||[]).length){
+  $("exclWrap").style.display='block';
+  $("excl").innerHTML = CONFIG.excluded.map(x=>
+    '<div class="tier"><b>'+esc(x.group)+'</b> <span class="why">- '+esc(x.names||'')+'</span><div class="why">'+esc(x.reason||'')+'</div></div>').join('');
+}
+$("portfolio").innerHTML = '<b>Portfolio &amp; risk (per the method):</b> '+esc(CONFIG.portfolioNote||'');
+
+// ---- glossary of acronyms (default set; extend via CONFIG.glossary = [{term,def}, ...]) ----
+const DEFAULT_GLOSSARY = [
+  {term:"CAN SLIM", def:"Growth-stock selection framework - the seven traits (below) shared by big market winners just before their major advances."},
+  {term:"C", def:"Current quarterly earnings & sales - up sharply vs the year-ago quarter and accelerating."},
+  {term:"A", def:"Annual earnings - multi-year EPS growth with a high return on equity."},
+  {term:"N", def:"New - a new product / management / industry condition AND a breakout to new highs from a sound base."},
+  {term:"S", def:"Supply & demand - a volume surge on the breakout, a manageable float, buybacks."},
+  {term:"L", def:"Leader, not laggard - high relative strength; the #1 or #2 name in a strong group."},
+  {term:"I", def:"Institutional sponsorship - increasing ownership by high-quality funds."},
+  {term:"M", def:"Market direction - the general market must be in a confirmed uptrend (shown in the banner at the top)."},
+  {term:"RS", def:"Relative strength - price performance vs the S&P 500. Shown here as a proxy, not a full-market 1-99 rating."},
+  {term:"EPS", def:"Earnings per share."},
+  {term:"YoY", def:"Year over year - vs the same period one year earlier."},
+  {term:"ROE", def:"Return on equity - profit as a percentage of shareholders' equity."},
+  {term:"FCF", def:"Free cash flow - operating cash flow minus capital expenditures."},
+  {term:"ARR", def:"Annual recurring revenue - the annualized run-rate of subscription revenue."},
+  {term:"EBITDA", def:"Earnings before interest, taxes, depreciation & amortization."},
+  {term:"GAAP / non-GAAP", def:"Standardized accounting results vs company-adjusted (non-standard) results."},
+  {term:"MA (50-/200-day)", def:"Moving average of price - the 50- and 200-day trend lines."},
+  {term:"bps", def:"Basis points - 1 bp = 0.01% (100 bps = 1%)."},
+  {term:"AI", def:"Artificial intelligence."},
+  {term:"ETF", def:"Exchange-traded fund (e.g. SPY = S&P 500, QQQ = Nasdaq-100)."},
+  {term:"IB", def:"Investment banking."},
+  {term:"GLP-1", def:"A class of weight-loss / diabetes drugs (e.g. Eli Lilly, Novo Nordisk)."},
+  {term:"NGS", def:"Next-generation security - a recurring-revenue security metric (e.g. Palo Alto Networks)."}
+];
+(function(){
+  const el = document.getElementById("glossary"); if(!el) return;
+  const extra = Array.isArray(CONFIG.glossary) ? CONFIG.glossary : [];
+  const seen = new Set(DEFAULT_GLOSSARY.map(g=>String(g.term).toLowerCase()));
+  const all = DEFAULT_GLOSSARY.concat(extra.filter(g=>g&&g.term&&!seen.has(String(g.term).toLowerCase())));
+  el.innerHTML = all.map(g=>'<div class="gterm">'+esc(g.term)+'</div><div class="gdef">'+esc(g.def)+'</div>').join('');
+})();
+$("disclaimer").textContent = CONFIG.disclaimer||'';
+if ((CONFIG.sources||[]).length){
+  $("sources").innerHTML = "Sources: " + CONFIG.sources.map(s=>'<a href="'+esc(s.url)+'">'+esc(s.label)+'</a>').join('');
+}
+</script>
+</body>
+</html>
